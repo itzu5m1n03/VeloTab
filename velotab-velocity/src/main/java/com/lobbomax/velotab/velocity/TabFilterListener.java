@@ -1,13 +1,16 @@
 package com.lobbomax.velotab.velocity;
 
 import com.mojang.brigadier.tree.CommandNode;
+import com.mojang.brigadier.tree.RootCommandNode;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.command.PlayerAvailableCommandsEvent;
 import com.velocitypowered.api.proxy.Player;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Filtra los comandos que Velocity le manda al cliente para el
@@ -35,7 +38,7 @@ public class TabFilterListener {
             return;
         }
 
-        CommandNode<CommandSource> root = event.getRootNode();
+        RootCommandNode<CommandSource> root = (RootCommandNode<CommandSource>) event.getRootNode();
 
         // Hay que copiar la lista de hijos antes de iterar, porque
         // removeChild la modifica mientras se recorre.
@@ -49,7 +52,7 @@ public class TabFilterListener {
             }
 
             if (config.getForceHide().contains(name)) {
-                root.removeChild(child.getName());
+                removeChild(root, child.getName());
                 continue;
             }
 
@@ -57,8 +60,29 @@ public class TabFilterListener {
             // comando (el mismo chequeo de permiso que usa el propio
             // comando al ejecutarse).
             if (!child.canUse(player)) {
-                root.removeChild(child.getName());
+                removeChild(root, child.getName());
             }
+        }
+    }
+
+    private void removeChild(RootCommandNode<CommandSource> root, String name) {
+        try {
+            Field childrenField = CommandNode.class.getDeclaredField("children");
+            childrenField.setAccessible(true);
+            Map<String, CommandNode<CommandSource>> children = (Map<String, CommandNode<CommandSource>>) childrenField.get(root);
+            children.remove(name);
+
+            Field literalsField = CommandNode.class.getDeclaredField("literals");
+            literalsField.setAccessible(true);
+            Map<String, CommandNode<CommandSource>> literals = (Map<String, CommandNode<CommandSource>>) literalsField.get(root);
+            literals.remove(name);
+
+            Field argumentsField = CommandNode.class.getDeclaredField("arguments");
+            argumentsField.setAccessible(true);
+            Map<String, CommandNode<CommandSource>> arguments = (Map<String, CommandNode<CommandSource>>) argumentsField.get(root);
+            arguments.remove(name);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }

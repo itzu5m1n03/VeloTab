@@ -1,0 +1,29 @@
+# =====================================================
+#  VeloTab (Velocity / Proxy) - LobboMax
+# =====================================================
+# Oculta comandos del tab del proxy automaticamente segun el permiso
+# real de cada comando. El permiso "velotab.bypass" ve todo sin filtrar.
+
+Tab_Hide:
+  enable: true
+
+  # Comandos que quieres ocultar SIEMPRE (sin importar el permiso).
+  force_hide:
+    - "plugins"
+    - "pl"
+    - "version"
+    - "ver"
+    - "about"
+    - "icanhasbukkit"
+    - "help"
+    - "?"
+    - "velocity"
+    - "server"
+    - "lpv"
+
+  # Comandos que NUNCA se ocultan, sin importar el permiso.
+  always_show:
+    - "premium"
+    - "cracked"
+    - "register"
+    - "login"

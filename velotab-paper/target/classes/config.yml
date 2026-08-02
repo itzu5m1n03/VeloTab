@@ -1,0 +1,69 @@
+# =====================================================
+#  VeloTab (Paper) - LobboMax
+# =====================================================
+
+# --- AUTOCOMPLETADO (TAB) ---
+# Oculta comandos del tab automaticamente segun el permiso REAL de cada
+# comando (el mismo que revisa LuckPerms). No necesitas mantener listas
+# manuales por rango. El permiso "velotab.bypass" ve todo sin filtrar.
+Tab_Hide:
+  enable: true
+  # Comandos que quieres ocultar SIEMPRE (sin importar el permiso).
+  force_hide:
+    - "plugins"
+    - "pl"
+    - "version"
+    - "ver"
+    - "about"
+    - "icanhasbukkit"
+    - "help"
+    - "?"
+  # Comandos que NUNCA se ocultan, sin importar el permiso.
+  always_show:
+    - "msg"
+    - "spawn"
+    - "kit"
+    - "warp"
+
+# --- FORMATO DE CHAT ---
+# Personaliza como se ve el chat por rango de LuckPerms.
+# La clave debe ser EXACTAMENTE el nombre del grupo en LuckPerms
+# (minusculas, tal cual aparece en tu export).
+# Placeholders disponibles: {player}  {message}  %luckperms_prefix%  %luckperms_suffix%
+# Si tienes PlaceholderAPI instalado, cualquier otro %placeholder% tambien
+# se resuelve automaticamente (ej: %uclans_tag_color%).
+Chat_Format:
+
+  Enable: true
+
+  # Se usa si el grupo del jugador no tiene un formato propio abajo.
+  Default_Format: '&8[%luckperms_prefix%&8] &7{player} &8» &7{message}'
+
+  fundador: '&8[&4&lFUNDADOR&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  co-fundador: '&8[&4CO-FUNDADOR&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  owner: '&8[&cOWNER&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  co-owner: '&8[&cCO-OWNER&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  head-manager: '&8[&6HEAD-MANAGER&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  manager: '&8[&6MANAGER&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  developer: '&8[&bDEVELOPER&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  builder: '&8[&aBUILDER&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  admin: '&8[&cADMIN&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  admin-jr: '&8[&cADMIN-JR&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  head-mod: '&8[&9HEAD-MOD&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  senior-mod: '&8[&9SENIOR-MOD&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  mod: '&8[&9MOD&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  trial-mod: '&8[&9TRIAL-MOD&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  helper: '&8[&dHELPER&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  soporte: '&8[&dSOPORTE&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  postulante: '&8[&7POSTULANTE&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  partner: '&8[&5PARTNER&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  famoso: '&8[&5FAMOSO&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  media: '&8[&5MEDIA&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  lobo+: '&8[&eLOBO+&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  lobo: '&8[&eLOBO&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  mvp+: '&8[&2MVP+&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  mvp: '&8[&2MVP&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  vip+: '&8[&aVIP+&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  vip: '&8[&aVIP&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  user: '&8[&7USER&8] &7{player} &8» &7{message}'
+  default: '&8[&7Default&8] &7{player} &8» &7{message}'
