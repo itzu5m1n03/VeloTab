@@ -41,28 +41,31 @@ public class TabFilterListener {
         for (CommandNode<CommandSource> child : children) {
             String name = child.getName().toLowerCase();
 
-            // 1. Siempre mostrar
-            if (config.getAlwaysShow().contains(name)) {
-                continue;
-            }
-
-            // 2. Forzar ocultar
+            // 1. Whitelist / Blacklist manual
+            if (config.getAlwaysShow().contains(name)) continue;
             if (config.getForceHide().contains(name)) {
                 removeChild(root, child.getName());
                 continue;
             }
 
-            // 3. Filtrado por requerimiento de Brigadier (canUse)
+            // 2. Comprobacion nativa de Brigadier
             if (!child.canUse(player)) {
-                // Si el sistema nativo dice que no, lo quitamos.
                 removeChild(root, child.getName());
                 continue;
             }
 
-            // 4. Filtrado inteligente para comandos con prefijo sin requerimientos claros
+            // 3. Filtrado Estricto para comandos con prefijo (ej: litebans:checkwarn)
+            // Si el comando tiene ":" y el jugador no tiene el permiso explicito, lo quitamos.
             if (name.contains(":")) {
                 String guessedPermission = name.replace(":", ".");
-                if (!player.hasPermission(guessedPermission) && !player.hasPermission(name)) {
+                if (!player.hasPermission(guessedPermission) && !player.hasPermission(name) && !player.hasPermission("velotab.admin")) {
+                    removeChild(root, child.getName());
+                }
+            }
+            
+            // 4. Caso especial: comandos de plugins conocidos que a veces se saltan el canUse
+            if (name.equals("listwarn") || name.equals("listwarnings") || name.equals("checkwarn")) {
+                if (!player.hasPermission("litebans." + name) && !player.hasPermission("velotab.admin")) {
                     removeChild(root, child.getName());
                 }
             }
@@ -73,17 +76,17 @@ public class TabFilterListener {
         try {
             Field childrenField = CommandNode.class.getDeclaredField("children");
             childrenField.setAccessible(true);
-            Map<String, CommandNode<CommandSource>> children = (Map<String, CommandNode<CommandSource>>) childrenField.get(root);
+            Map<String, CommandNode<?>> children = (Map<String, CommandNode<?>>) childrenField.get(root);
             children.remove(name);
 
             Field literalsField = CommandNode.class.getDeclaredField("literals");
             literalsField.setAccessible(true);
-            Map<String, CommandNode<CommandSource>> literals = (Map<String, CommandNode<CommandSource>>) literalsField.get(root);
+            Map<String, CommandNode<?>> literals = (Map<String, CommandNode<?>>) literalsField.get(root);
             literals.remove(name);
 
             Field argumentsField = CommandNode.class.getDeclaredField("arguments");
             argumentsField.setAccessible(true);
-            Map<String, CommandNode<CommandSource>> arguments = (Map<String, CommandNode<CommandSource>>) argumentsField.get(root);
+            Map<String, CommandNode<?>> arguments = (Map<String, CommandNode<?>>) argumentsField.get(root);
             arguments.remove(name);
         } catch (Exception ignored) {}
     }

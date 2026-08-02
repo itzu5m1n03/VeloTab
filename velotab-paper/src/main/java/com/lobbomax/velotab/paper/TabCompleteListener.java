@@ -64,50 +64,45 @@ public class TabCompleteListener implements Listener {
             String rawCommand = iterator.next();
             String baseCommand = stripPluginPrefix(rawCommand).toLowerCase();
 
-            // 1. Siempre mostrar (Whitelist manual)
+            // 1. Siempre mostrar (Whitelist)
             if (alwaysShow.contains(baseCommand)) {
                 continue;
             }
 
-            // 2. Forzar ocultar (Blacklist manual)
+            // 2. Forzar ocultar (Blacklist)
             if (forceHide.contains(baseCommand)) {
                 iterator.remove();
                 continue;
             }
 
-            // 3. Filtrado inteligente por permisos
-            if (commandMap != null) {
-                Command command = commandMap.getCommand(rawCommand);
-                if (command == null) {
-                    command = commandMap.getCommand(baseCommand);
-                }
+            // 3. Filtrado Estricto
+            Command command = commandMap.getCommand(rawCommand);
+            if (command == null) {
+                command = commandMap.getCommand(baseCommand);
+            }
 
-                if (command != null) {
-                    String permission = command.getPermission();
-                    
-                    // Si el comando tiene permiso registrado, lo comprobamos
-                    if (permission != null && !permission.isEmpty()) {
-                        if (!player.hasPermission(permission)) {
-                            iterator.remove();
-                            continue;
-                        }
-                    } else {
-                        // Si el comando NO tiene permiso registrado (es nulo),
-                        // intentamos "adivinar" el permiso logico para evitar que sea publico.
-                        // Ej: chatmanager:pwc -> intenta chequear chatmanager.pwc
+            if (command != null) {
+                String permission = command.getPermission();
+                if (permission != null && !permission.isEmpty()) {
+                    // Si tiene permiso oficial, lo respetamos
+                    if (!player.hasPermission(permission)) {
+                        iterator.remove();
+                        continue;
+                    }
+                } else {
+                    // Si NO tiene permiso oficial, pero es un comando con prefijo,
+                    // lo ocultamos a menos que el jugador sea admin o tenga el permiso "adivinado".
+                    if (rawCommand.contains(":")) {
                         String guessedPermission = rawCommand.replace(":", ".");
-                        if (rawCommand.contains(":") && !player.hasPermission(guessedPermission)) {
+                        if (!player.hasPermission(guessedPermission) && !player.hasPermission("velotab.admin")) {
                             iterator.remove();
                             continue;
-                        }
-                        
-                        // Si es un comando base sin prefijo y sin permiso, 
-                        // pero no es admin, ocultamos los comandos de ayuda/debug tipicos.
-                        if (!rawCommand.contains(":") && !player.hasPermission("velotab.admin")) {
-                            // Opcional: Podrias añadir mas filtros aqui si fuera necesario.
                         }
                     }
                 }
+            } else if (rawCommand.contains(":")) {
+                // Si el comando ni siquiera figura en el mapa pero tiene prefijo, fuera.
+                iterator.remove();
             }
         }
     }
