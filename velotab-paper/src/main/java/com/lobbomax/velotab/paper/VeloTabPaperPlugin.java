@@ -30,6 +30,10 @@ public final class VeloTabPaperPlugin extends JavaPlugin {
 
         if (getCommand("velotab") != null) {
             getCommand("velotab").setExecutor((sender, command, label, args) -> {
+                if (!sender.hasPermission("velotab.admin")) {
+                    sender.sendMessage("§cNo tienes permiso para ejecutar este comando.");
+                    return true;
+                }
                 reloadConfig();
                 sender.sendMessage("§a[VeloTab] Configuracion recargada.");
                 return true;

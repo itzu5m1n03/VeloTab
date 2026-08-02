@@ -3,6 +3,7 @@ package com.lobbomax.velotab.paper;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandMap;
+import org.bukkit.command.SimpleCommandMap;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -16,8 +17,7 @@ import java.util.Set;
 /**
  * Filtra la lista de comandos que el servidor envia al cliente para el
  * autocompletado (tab), usando el permiso REAL registrado en cada
- * comando (el mismo que revisa LuckPerms). No hace falta mantener una
- * lista manual por rango.
+ * comando (el mismo que revisa LuckPerms).
  */
 public class TabCompleteListener implements Listener {
 
@@ -31,12 +31,23 @@ public class TabCompleteListener implements Listener {
 
     private CommandMap resolveCommandMap() {
         try {
+            // Intento estandar para CraftServer
             Field field = Bukkit.getServer().getClass().getDeclaredField("commandMap");
             field.setAccessible(true);
             return (CommandMap) field.get(Bukkit.getServer());
         } catch (Exception e) {
-            plugin.getLogger().warning("No se pudo acceder al CommandMap por reflexion. "
-                    + "El filtrado por permiso real quedara desactivado. Error: " + e.getMessage());
+            try {
+                // Intento alternativo por si el nombre esta ofuscado o es diferente
+                for (Field field : Bukkit.getServer().getClass().getDeclaredFields()) {
+                    if (CommandMap.class.isAssignableFrom(field.getType()) || SimpleCommandMap.class.isAssignableFrom(field.getType())) {
+                        field.setAccessible(true);
+                        return (CommandMap) field.get(Bukkit.getServer());
+                    }
+                }
+            } catch (Exception e2) {
+                plugin.getLogger().warning("No se pudo acceder al CommandMap por reflexion. "
+                        + "El filtrado por permiso real quedara desactivado.");
+            }
             return null;
         }
     }
@@ -80,23 +91,28 @@ public class TabCompleteListener implements Listener {
             String rawCommand = iterator.next();
             String baseCommand = stripPluginPrefix(rawCommand).toLowerCase();
 
+            // 1. Siempre mostrar
             if (alwaysShow.contains(baseCommand)) {
                 continue;
             }
 
+            // 2. Forzar ocultar
             if (forceHide.contains(baseCommand)) {
                 iterator.remove();
                 continue;
             }
 
+            // 3. Filtrar por permiso real
             if (commandMap != null) {
                 Command command = commandMap.getCommand(rawCommand);
                 if (command == null) {
                     command = commandMap.getCommand(baseCommand);
                 }
+
                 if (command != null) {
-                    String permission = command.getPermission();
-                    if (permission != null && !permission.isEmpty() && !player.hasPermission(permission)) {
+                    // testPermissionSilent es mas fiable que getPermission() 
+                    // porque maneja los valores por defecto (op/true/false) correctamente.
+                    if (!command.testPermissionSilent(player)) {
                         iterator.remove();
                     }
                 }
