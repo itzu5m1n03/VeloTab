@@ -14,7 +14,7 @@ import java.util.Map;
 
 /**
  * Filtra los comandos que Velocity le manda al cliente para el
- * autocompletado (tab) del proxy.
+ * autocompletado (tab) del proxy, basandose estrictamente en permisos.
  */
 public class TabFilterListener {
 
@@ -35,7 +35,6 @@ public class TabFilterListener {
             return;
         }
 
-        boolean isAdmin = player.hasPermission("velotab.admin");
         RootCommandNode<CommandSource> root = (RootCommandNode<CommandSource>) event.getRootNode();
         List<CommandNode<CommandSource>> children = new ArrayList<>(root.getChildren());
 
@@ -53,22 +52,25 @@ public class TabFilterListener {
                 continue;
             }
 
-            // 3. Ocultar comandos con prefijo (plugin:comando) para no-admins
-            if (config.isHidePrefixed() && !isAdmin && name.contains(":")) {
+            // 3. Filtrado por requerimiento de Brigadier (canUse)
+            if (!child.canUse(player)) {
+                // Si el sistema nativo dice que no, lo quitamos.
                 removeChild(root, child.getName());
                 continue;
             }
 
-            // 4. Filtrar por el predicado "requires" de Brigadier
-            if (!child.canUse(player)) {
-                removeChild(root, child.getName());
+            // 4. Filtrado inteligente para comandos con prefijo sin requerimientos claros
+            if (name.contains(":")) {
+                String guessedPermission = name.replace(":", ".");
+                if (!player.hasPermission(guessedPermission) && !player.hasPermission(name)) {
+                    removeChild(root, child.getName());
+                }
             }
         }
     }
 
     private void removeChild(RootCommandNode<CommandSource> root, String name) {
         try {
-            // Brigadier usa mapas internos para los nodos. Hay que eliminarlos de todos.
             Field childrenField = CommandNode.class.getDeclaredField("children");
             childrenField.setAccessible(true);
             Map<String, CommandNode<CommandSource>> children = (Map<String, CommandNode<CommandSource>>) childrenField.get(root);
@@ -83,8 +85,6 @@ public class TabFilterListener {
             argumentsField.setAccessible(true);
             Map<String, CommandNode<CommandSource>> arguments = (Map<String, CommandNode<CommandSource>>) argumentsField.get(root);
             arguments.remove(name);
-        } catch (Exception e) {
-            // Si falla la reflexion, el comando no se podra ocultar.
-        }
+        } catch (Exception ignored) {}
     }
 }

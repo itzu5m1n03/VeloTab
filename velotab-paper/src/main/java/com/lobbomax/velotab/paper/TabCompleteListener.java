@@ -14,8 +14,7 @@ import java.util.Set;
 
 /**
  * Filtra la lista de comandos que el servidor envia al cliente para el
- * autocompletado (tab), usando el permiso REAL registrado en cada
- * comando (el mismo que revisa LuckPerms).
+ * autocompletado (tab), basandose estrictamente en los permisos de LuckPerms.
  */
 public class TabCompleteListener implements Listener {
 
@@ -27,10 +26,6 @@ public class TabCompleteListener implements Listener {
 
     private boolean isEnabled() {
         return plugin.getConfig().getBoolean("Tab_Hide.enable", true);
-    }
-
-    private boolean shouldHidePrefixed() {
-        return plugin.getConfig().getBoolean("Tab_Hide.hide_prefixed_commands", true);
     }
 
     private Set<String> forceHide() {
@@ -60,7 +55,6 @@ public class TabCompleteListener implements Listener {
             return;
         }
 
-        boolean isAdmin = player.hasPermission("velotab.admin");
         Set<String> forceHide = forceHide();
         Set<String> alwaysShow = alwaysShow();
         CommandMap commandMap = Bukkit.getCommandMap();
@@ -70,25 +64,18 @@ public class TabCompleteListener implements Listener {
             String rawCommand = iterator.next();
             String baseCommand = stripPluginPrefix(rawCommand).toLowerCase();
 
-            // 1. Siempre mostrar
+            // 1. Siempre mostrar (Whitelist manual)
             if (alwaysShow.contains(baseCommand)) {
                 continue;
             }
 
-            // 2. Forzar ocultar
+            // 2. Forzar ocultar (Blacklist manual)
             if (forceHide.contains(baseCommand)) {
                 iterator.remove();
                 continue;
             }
 
-            // 3. Ocultar comandos con prefijo (plugin:comando) para no-admins
-            // Esto limpia el tab de "chatmanager:staffchat", etc.
-            if (shouldHidePrefixed() && !isAdmin && rawCommand.contains(":")) {
-                iterator.remove();
-                continue;
-            }
-
-            // 4. Filtrar por permiso real
+            // 3. Filtrado inteligente por permisos
             if (commandMap != null) {
                 Command command = commandMap.getCommand(rawCommand);
                 if (command == null) {
@@ -96,8 +83,29 @@ public class TabCompleteListener implements Listener {
                 }
 
                 if (command != null) {
-                    if (!command.testPermissionSilent(player)) {
-                        iterator.remove();
+                    String permission = command.getPermission();
+                    
+                    // Si el comando tiene permiso registrado, lo comprobamos
+                    if (permission != null && !permission.isEmpty()) {
+                        if (!player.hasPermission(permission)) {
+                            iterator.remove();
+                            continue;
+                        }
+                    } else {
+                        // Si el comando NO tiene permiso registrado (es nulo),
+                        // intentamos "adivinar" el permiso logico para evitar que sea publico.
+                        // Ej: chatmanager:pwc -> intenta chequear chatmanager.pwc
+                        String guessedPermission = rawCommand.replace(":", ".");
+                        if (rawCommand.contains(":") && !player.hasPermission(guessedPermission)) {
+                            iterator.remove();
+                            continue;
+                        }
+                        
+                        // Si es un comando base sin prefijo y sin permiso, 
+                        // pero no es admin, ocultamos los comandos de ayuda/debug tipicos.
+                        if (!rawCommand.contains(":") && !player.hasPermission("velotab.admin")) {
+                            // Opcional: Podrias añadir mas filtros aqui si fuera necesario.
+                        }
                     }
                 }
             }
