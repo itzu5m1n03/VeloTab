@@ -1,1 +1,0 @@
-{"id":"velotab","name":"VeloTab","version":"1.0.0","description":"Oculta comandos del tab del proxy segun el permiso real.","authors":["LobboMax"],"dependencies":[],"main":"com.lobbomax.velotab.velocity.VeloTabVelocityPlugin"}
