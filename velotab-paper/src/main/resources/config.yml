@@ -8,6 +8,9 @@
 # manuales por rango. El permiso "velotab.bypass" ve todo sin filtrar.
 Tab_Hide:
   enable: true
+  # Oculta automaticamente todos los comandos con prefijo (ej: chatmanager:staffchat)
+  # para los jugadores que no sean administradores. Recomendado para limpiar el tab.
+  hide_prefixed_commands: true
   # Comandos que quieres ocultar SIEMPRE (sin importar el permiso).
   force_hide:
     - "plugins"

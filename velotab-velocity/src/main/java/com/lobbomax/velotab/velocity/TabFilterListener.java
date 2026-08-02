@@ -14,9 +14,7 @@ import java.util.Map;
 
 /**
  * Filtra los comandos que Velocity le manda al cliente para el
- * autocompletado (tab) del proxy. Usa el "requires" real de cada
- * comando (equivalente al permiso real de LuckPerms) para decidir si
- * se muestra o no, sin necesidad de listas manuales por rango.
+ * autocompletado (tab) del proxy.
  */
 public class TabFilterListener {
 
@@ -33,32 +31,35 @@ public class TabFilterListener {
         }
 
         Player player = event.getPlayer();
-
         if (player.hasPermission("velotab.bypass")) {
             return;
         }
 
+        boolean isAdmin = player.hasPermission("velotab.admin");
         RootCommandNode<CommandSource> root = (RootCommandNode<CommandSource>) event.getRootNode();
-
-        // Hay que copiar la lista de hijos antes de iterar, porque
-        // removeChild la modifica mientras se recorre.
         List<CommandNode<CommandSource>> children = new ArrayList<>(root.getChildren());
 
         for (CommandNode<CommandSource> child : children) {
             String name = child.getName().toLowerCase();
 
+            // 1. Siempre mostrar
             if (config.getAlwaysShow().contains(name)) {
                 continue;
             }
 
+            // 2. Forzar ocultar
             if (config.getForceHide().contains(name)) {
                 removeChild(root, child.getName());
                 continue;
             }
 
-            // canUse() ejecuta el "requires" real registrado para ese
-            // comando (el mismo chequeo de permiso que usa el propio
-            // comando al ejecutarse).
+            // 3. Ocultar comandos con prefijo (plugin:comando) para no-admins
+            if (config.isHidePrefixed() && !isAdmin && name.contains(":")) {
+                removeChild(root, child.getName());
+                continue;
+            }
+
+            // 4. Filtrar por el predicado "requires" de Brigadier
             if (!child.canUse(player)) {
                 removeChild(root, child.getName());
             }
@@ -67,6 +68,7 @@ public class TabFilterListener {
 
     private void removeChild(RootCommandNode<CommandSource> root, String name) {
         try {
+            // Brigadier usa mapas internos para los nodos. Hay que eliminarlos de todos.
             Field childrenField = CommandNode.class.getDeclaredField("children");
             childrenField.setAccessible(true);
             Map<String, CommandNode<CommandSource>> children = (Map<String, CommandNode<CommandSource>>) childrenField.get(root);
@@ -82,7 +84,7 @@ public class TabFilterListener {
             Map<String, CommandNode<CommandSource>> arguments = (Map<String, CommandNode<CommandSource>>) argumentsField.get(root);
             arguments.remove(name);
         } catch (Exception e) {
-            e.printStackTrace();
+            // Si falla la reflexion, el comando no se podra ocultar.
         }
     }
 }

@@ -26,6 +26,7 @@ public class VeloTabConfig {
     private boolean enabled = true;
     private final Set<String> forceHide = new HashSet<>();
     private final Set<String> alwaysShow = new HashSet<>();
+    private boolean hidePrefixed = true;
 
     public VeloTabConfig(Path dataDirectory, Logger logger) {
         this.dataDirectory = dataDirectory;
@@ -64,6 +65,8 @@ public class VeloTabConfig {
                 alwaysShow.add(s.toLowerCase());
             }
 
+            hidePrefixed = root.node("Tab_Hide", "hide_prefixed_commands").getBoolean(true);
+
         } catch (IOException e) {
             logger.warn("No se pudo cargar config.yml, usando valores por defecto.", e);
         }
@@ -79,5 +82,9 @@ public class VeloTabConfig {
 
     public Set<String> getAlwaysShow() {
         return alwaysShow;
+    }
+
+    public boolean isHidePrefixed() {
+        return hidePrefixed;
     }
 }

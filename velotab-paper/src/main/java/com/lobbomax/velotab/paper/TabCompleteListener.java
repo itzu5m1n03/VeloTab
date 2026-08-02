@@ -3,13 +3,11 @@ package com.lobbomax.velotab.paper;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandMap;
-import org.bukkit.command.SimpleCommandMap;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerCommandSendEvent;
 
-import java.lang.reflect.Field;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
@@ -22,38 +20,17 @@ import java.util.Set;
 public class TabCompleteListener implements Listener {
 
     private final VeloTabPaperPlugin plugin;
-    private CommandMap commandMap;
 
     public TabCompleteListener(VeloTabPaperPlugin plugin) {
         this.plugin = plugin;
-        this.commandMap = resolveCommandMap();
-    }
-
-    private CommandMap resolveCommandMap() {
-        try {
-            // Intento estandar para CraftServer
-            Field field = Bukkit.getServer().getClass().getDeclaredField("commandMap");
-            field.setAccessible(true);
-            return (CommandMap) field.get(Bukkit.getServer());
-        } catch (Exception e) {
-            try {
-                // Intento alternativo por si el nombre esta ofuscado o es diferente
-                for (Field field : Bukkit.getServer().getClass().getDeclaredFields()) {
-                    if (CommandMap.class.isAssignableFrom(field.getType()) || SimpleCommandMap.class.isAssignableFrom(field.getType())) {
-                        field.setAccessible(true);
-                        return (CommandMap) field.get(Bukkit.getServer());
-                    }
-                }
-            } catch (Exception e2) {
-                plugin.getLogger().warning("No se pudo acceder al CommandMap por reflexion. "
-                        + "El filtrado por permiso real quedara desactivado.");
-            }
-            return null;
-        }
     }
 
     private boolean isEnabled() {
         return plugin.getConfig().getBoolean("Tab_Hide.enable", true);
+    }
+
+    private boolean shouldHidePrefixed() {
+        return plugin.getConfig().getBoolean("Tab_Hide.hide_prefixed_commands", true);
     }
 
     private Set<String> forceHide() {
@@ -83,8 +60,10 @@ public class TabCompleteListener implements Listener {
             return;
         }
 
+        boolean isAdmin = player.hasPermission("velotab.admin");
         Set<String> forceHide = forceHide();
         Set<String> alwaysShow = alwaysShow();
+        CommandMap commandMap = Bukkit.getCommandMap();
 
         Iterator<String> iterator = event.getCommands().iterator();
         while (iterator.hasNext()) {
@@ -102,7 +81,14 @@ public class TabCompleteListener implements Listener {
                 continue;
             }
 
-            // 3. Filtrar por permiso real
+            // 3. Ocultar comandos con prefijo (plugin:comando) para no-admins
+            // Esto limpia el tab de "chatmanager:staffchat", etc.
+            if (shouldHidePrefixed() && !isAdmin && rawCommand.contains(":")) {
+                iterator.remove();
+                continue;
+            }
+
+            // 4. Filtrar por permiso real
             if (commandMap != null) {
                 Command command = commandMap.getCommand(rawCommand);
                 if (command == null) {
@@ -110,8 +96,6 @@ public class TabCompleteListener implements Listener {
                 }
 
                 if (command != null) {
-                    // testPermissionSilent es mas fiable que getPermission() 
-                    // porque maneja los valores por defecto (op/true/false) correctamente.
                     if (!command.testPermissionSilent(player)) {
                         iterator.remove();
                     }
