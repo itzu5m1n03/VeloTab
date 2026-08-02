@@ -3,6 +3,7 @@ package com.lobbomax.velotab.paper;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandMap;
+import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -64,44 +65,60 @@ public class TabCompleteListener implements Listener {
             String rawCommand = iterator.next();
             String baseCommand = stripPluginPrefix(rawCommand).toLowerCase();
 
-            // 1. Siempre mostrar (Whitelist)
+            // 1. Whitelist
             if (alwaysShow.contains(baseCommand)) {
                 continue;
             }
 
-            // 2. Forzar ocultar (Blacklist)
+            // 2. Blacklist
             if (forceHide.contains(baseCommand)) {
                 iterator.remove();
                 continue;
             }
 
-            // 3. Filtrado Estricto
+            // 3. Filtrado por Propiedad y Permiso
             Command command = commandMap.getCommand(rawCommand);
             if (command == null) {
                 command = commandMap.getCommand(baseCommand);
             }
 
             if (command != null) {
+                // Intentamos sacar el permiso oficial
                 String permission = command.getPermission();
+                
+                // Intentamos identificar al plugin dueño del comando
+                String ownerPlugin = null;
+                if (command instanceof PluginCommand) {
+                    ownerPlugin = ((PluginCommand) command).getPlugin().getName().toLowerCase();
+                }
+
+                // A) Si tiene permiso oficial, es la prioridad
                 if (permission != null && !permission.isEmpty()) {
-                    // Si tiene permiso oficial, lo respetamos
                     if (!player.hasPermission(permission)) {
                         iterator.remove();
                         continue;
                     }
-                } else {
-                    // Si NO tiene permiso oficial, pero es un comando con prefijo,
-                    // lo ocultamos a menos que el jugador sea admin o tenga el permiso "adivinado".
-                    if (rawCommand.contains(":")) {
-                        String guessedPermission = rawCommand.replace(":", ".");
-                        if (!player.hasPermission(guessedPermission) && !player.hasPermission("velotab.admin")) {
-                            iterator.remove();
-                            continue;
-                        }
+                } 
+                
+                // B) Si no tiene permiso oficial pero sabemos de que plugin es,
+                // forzamos un chequeo de permiso "plugin.comando"
+                if (ownerPlugin != null) {
+                    String guessed = ownerPlugin + "." + baseCommand;
+                    if (!player.hasPermission(guessed) && !player.hasPermission("velotab.admin")) {
+                        iterator.remove();
+                        continue;
+                    }
+                }
+                
+                // C) Si es un comando con prefijo y no hemos pasado los filtros anteriores, fuera.
+                if (rawCommand.contains(":") && !player.hasPermission("velotab.admin")) {
+                    String guessed = rawCommand.replace(":", ".");
+                    if (!player.hasPermission(guessed)) {
+                        iterator.remove();
                     }
                 }
             } else if (rawCommand.contains(":")) {
-                // Si el comando ni siquiera figura en el mapa pero tiene prefijo, fuera.
+                // Comandos huerfanos con prefijo
                 iterator.remove();
             }
         }

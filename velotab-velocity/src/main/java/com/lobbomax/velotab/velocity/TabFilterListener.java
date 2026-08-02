@@ -9,6 +9,7 @@ import com.velocitypowered.api.proxy.Player;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -38,6 +39,17 @@ public class TabFilterListener {
         RootCommandNode<CommandSource> root = (RootCommandNode<CommandSource>) event.getRootNode();
         List<CommandNode<CommandSource>> children = new ArrayList<>(root.getChildren());
 
+        // Mapeo para identificar que comandos cortos pertenecen a que plugins
+        // basandonos en los comandos con prefijo presentes en el mismo evento.
+        Map<String, String> shortToLong = new HashMap<>();
+        for (CommandNode<CommandSource> child : children) {
+            String name = child.getName().toLowerCase();
+            if (name.contains(":")) {
+                String base = name.substring(name.indexOf(":") + 1);
+                shortToLong.put(base, name);
+            }
+        }
+
         for (CommandNode<CommandSource> child : children) {
             String name = child.getName().toLowerCase();
 
@@ -48,24 +60,21 @@ public class TabFilterListener {
                 continue;
             }
 
-            // 2. Comprobacion nativa de Brigadier
+            // 2. Comprobacion nativa
             if (!child.canUse(player)) {
                 removeChild(root, child.getName());
                 continue;
             }
 
-            // 3. Filtrado Estricto para comandos con prefijo (ej: litebans:checkwarn)
-            // Si el comando tiene ":" y el jugador no tiene el permiso explicito, lo quitamos.
-            if (name.contains(":")) {
-                String guessedPermission = name.replace(":", ".");
-                if (!player.hasPermission(guessedPermission) && !player.hasPermission(name) && !player.hasPermission("velotab.admin")) {
-                    removeChild(root, child.getName());
-                }
-            }
-            
-            // 4. Caso especial: comandos de plugins conocidos que a veces se saltan el canUse
-            if (name.equals("listwarn") || name.equals("listwarnings") || name.equals("checkwarn")) {
-                if (!player.hasPermission("litebans." + name) && !player.hasPermission("velotab.admin")) {
+            // 3. Filtrado Inteligente (Relacion Corto-Largo)
+            // Si es un comando corto (ej: warn) y existe su version larga (litebans:warn),
+            // aplicamos el permiso de la version larga a ambos.
+            String longVersion = shortToLong.get(name);
+            if (longVersion == null && name.contains(":")) longVersion = name;
+
+            if (longVersion != null) {
+                String guessedPermission = longVersion.replace(":", ".");
+                if (!player.hasPermission(guessedPermission) && !player.hasPermission(longVersion) && !player.hasPermission("velotab.admin")) {
                     removeChild(root, child.getName());
                 }
             }
