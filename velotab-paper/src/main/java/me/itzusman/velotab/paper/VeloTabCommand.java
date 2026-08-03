@@ -8,9 +8,15 @@ package me.itzusman.velotab.paper;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 
-public class VeloTabCommand implements CommandExecutor {
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class VeloTabCommand implements CommandExecutor, TabCompleter {
 
     private final VeloTabPaperPlugin plugin;
 
@@ -27,8 +33,7 @@ public class VeloTabCommand implements CommandExecutor {
 
         if (args.length > 0) {
             if (args[0].equalsIgnoreCase("reload")) {
-                plugin.reloadConfig();
-                plugin.loadLang();
+                plugin.reloadPlugin();
                 sender.sendMessage(plugin.getLangMessage("reload-success"));
                 return true;
             }
@@ -44,5 +49,16 @@ public class VeloTabCommand implements CommandExecutor {
         
         sender.sendMessage("§e[VeloTab] Uso: /velotab <info|reload>");
         return true;
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        if (args.length == 1) {
+            List<String> subCommands = Arrays.asList("info", "reload");
+            return subCommands.stream()
+                    .filter(s -> s.toLowerCase().startsWith(args[0].toLowerCase()))
+                    .collect(Collectors.toList());
+        }
+        return new ArrayList<>();
     }
 }
