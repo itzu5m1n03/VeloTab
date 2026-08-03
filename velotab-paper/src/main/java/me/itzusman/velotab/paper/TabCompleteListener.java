@@ -1,4 +1,4 @@
-package com.lobbomax.velotab.paper;
+package me.itzusman.velotab.paper;
 
 import com.destroystokyo.paper.event.server.AsyncTabCompleteEvent;
 import org.bukkit.Bukkit;

@@ -1,4 +1,4 @@
-package com.lobbomax.velotab.universal;
+package me.itzusman.velotab.universal;
 
 import java.util.logging.Logger;
 

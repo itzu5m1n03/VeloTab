@@ -1,4 +1,4 @@
-package com.lobbomax.velotab.universal;
+package me.itzusman.velotab.universal;
 
 /**
  * Esta clase sirve para documentar que el JAR Universal contiene todas las clases

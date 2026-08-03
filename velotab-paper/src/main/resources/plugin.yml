@@ -1,6 +1,6 @@
 name: VeloTab
 version: '1.2.0'
-main: com.lobbomax.velotab.paper.VeloTabPaperPlugin
+main: me.itzusman.velotab.paper.VeloTabPaperPlugin
 api-version: '1.20'
 author: ItzUsman
 website: itzusman.netlify.app

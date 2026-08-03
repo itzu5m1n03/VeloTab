@@ -1,4 +1,4 @@
-package com.lobbomax.velotab.paper;
+package me.itzusman.velotab.paper;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextReplacementConfig;

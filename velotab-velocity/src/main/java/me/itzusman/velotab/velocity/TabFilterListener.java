@@ -1,4 +1,4 @@
-package com.lobbomax.velotab.velocity;
+package me.itzusman.velotab.velocity;
 
 import com.mojang.brigadier.tree.CommandNode;
 import com.mojang.brigadier.tree.RootCommandNode;

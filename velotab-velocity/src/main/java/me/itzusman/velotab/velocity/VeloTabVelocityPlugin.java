@@ -1,4 +1,4 @@
-package com.lobbomax.velotab.velocity;
+package me.itzusman.velotab.velocity;
 
 import com.google.inject.Inject;
 import com.velocitypowered.api.event.Subscribe;

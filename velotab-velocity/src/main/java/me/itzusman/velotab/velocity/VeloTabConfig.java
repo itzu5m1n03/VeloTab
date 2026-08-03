@@ -1,4 +1,4 @@
-package com.lobbomax.velotab.velocity;
+package me.itzusman.velotab.velocity;
 
 import org.slf4j.Logger;
 import org.spongepowered.configurate.CommentedConfigurationNode;

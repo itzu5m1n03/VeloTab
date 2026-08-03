@@ -1,4 +1,4 @@
-package com.lobbomax.velotab.bungee;
+package me.itzusman.velotab.bungee;
 
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.event.TabCompleteResponseEvent;
