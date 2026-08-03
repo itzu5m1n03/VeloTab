@@ -50,25 +50,27 @@ public final class VeloTabPaperPlugin extends JavaPlugin {
                     if (args[0].equalsIgnoreCase("info")) {
                         sender.sendMessage(getLangMessage("info-header"));
                         sender.sendMessage(getLangMessage("info-version").replace("{version}", getDescription().getVersion()));
-                        sender.sendMessage(getLangMessage("info-author").replace("{author}", "LobboMax"));
+                        sender.sendMessage(getLangMessage("info-creator").replace("{link}", "itzusman.netlify.app"));
                         sender.sendMessage(getLangMessage("info-luckperms").replace("{status}", luckPermsPresent ? getLangMessage("status-enabled") : getLangMessage("status-disabled")));
                         sender.sendMessage(getLangMessage("info-placeholderapi").replace("{status}", placeholderApiPresent ? getLangMessage("status-enabled") : getLangMessage("status-disabled")));
                         return true;
                     }
                 }
                 
-                sender.sendMessage("§eUso: /velotab <info|reload>");
+                sender.sendMessage("§e[VeloTab] Uso: /velotab <info|reload>");
                 return true;
             });
         }
 
-        getLogger().info("VeloTab (Paper) habilitado con soporte multi-idioma.");
+        getLogger().info("VeloTab v" + getDescription().getVersion() + " por ItzUsman habilitado.");
     }
 
     public void loadLang() {
         String lang = getConfig().getString("language", "es").toLowerCase();
-        File langFile = new File(getDataFolder(), "lang/" + lang + ".yml");
+        File langDir = new File(getDataFolder(), "lang");
+        if (!langDir.exists()) langDir.mkdirs();
         
+        File langFile = new File(langDir, lang + ".yml");
         if (!langFile.exists()) {
             saveResource("lang/es.yml", false);
             saveResource("lang/en.yml", false);
@@ -76,7 +78,6 @@ public final class VeloTabPaperPlugin extends JavaPlugin {
         
         langConfig = YamlConfiguration.loadConfiguration(langFile);
         
-        // Cargar valores por defecto del jar si faltan en el archivo
         InputStream defLangStream = getResource("lang/" + lang + ".yml");
         if (defLangStream != null) {
             langConfig.setDefaults(YamlConfiguration.loadConfiguration(new InputStreamReader(defLangStream, StandardCharsets.UTF_8)));

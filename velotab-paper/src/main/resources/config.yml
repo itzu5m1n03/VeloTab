@@ -1,41 +1,73 @@
 # =====================================================
-#  VeloTab (Paper) - LobboMax
+#  VeloTab - Creado por ItzUsman
+#  Web: itzusman.netlify.app
 # =====================================================
 
 # Idioma del plugin (es / en)
 language: es
 
-# --- AUTOCOMPLETADO (TAB) ---
+# --- SEGURIDAD Y TAB ---
 Tab_Hide:
   enable: true
-  # Oculta automaticamente todos los comandos con prefijo (ej: chatmanager:staffchat)
+  # Oculta comandos con prefijo (ej: litebans:warn)
   hide_prefixed_commands: true
-  
-  # Comandos que quieres ocultar SIEMPRE
+  # Comandos ocultos permanentemente
   force_hide:
     - "plugins"
     - "pl"
     - "version"
     - "ver"
-    - "about"
-    - "icanhasbukkit"
-    - "help"
-    - "?"
-    
-  # Comandos que NUNCA se ocultan
+  # Comandos visibles siempre
   always_show:
     - "msg"
     - "spawn"
-    - "kit"
-    - "warp"
+
+# --- TABLIST (Header & Footer) ---
+# Soporta MiniMessage (RGB/Gradientes) y PlaceholderAPI
+TabList:
+  Enable: true
+  Update_Interval: 20 # En ticks (20 = 1 segundo)
+  Header:
+    - "<gradient:#fbff00:#ff0000><bold>LOBOMAX.XYZ</bold></gradient>"
+    - "&7¡Bienvenido &e%player_name%&7!"
+  Footer:
+    - "&7Jugadores: &e%bungee_total% &8| &7Ping: &e%player_ping%ms"
+    - "<gold>itzusman.netlify.app</gold>"
+
+# --- SCOREBOARD ---
+# Soporta animaciones y colores RGB
+Scoreboard:
+  Enable: true
+  Title: "<gradient:#fbff00:#ff0000><bold>LOBOMAX</bold></gradient>"
+  Lines:
+    - "&8&m-------------------"
+    - "&fNombre: &e%player_name%"
+    - "&fRango: %luckperms_prefix%"
+    - ""
+    - "&fLatencia: &e%player_ping%ms"
+    - "&fConectados: &e%bungee_total%"
+    - ""
+    - "&eLOBOMAX.XYZ"
+    - "&8&m-------------------"
+
+# --- ORDEN DE RANGOS (Sorting) ---
+# Determina el orden en el que aparecen los jugadores en el TabList.
+Sorting:
+  Enable: true
+  # Formato: "nombre_grupo:prioridad" (Menor numero = mas arriba)
+  Groups:
+    fundador: "01"
+    admin: "02"
+    mod: "03"
+    vip: "04"
+    user: "05"
+    default: "06"
 
 # --- FORMATO DE CHAT ---
 Chat_Format:
   Enable: true
   Default_Format: '&8[%luckperms_prefix%&8] &7{player} &8» &7{message}'
-  
-  fundador: '&8[&4&lFUNDADOR&8] %luckperms_prefix%&7{player} &8» &f{message}'
-  admin: '&8[&cADMIN&8] %luckperms_prefix%&7{player} &8» &f{message}'
-  vip: '&8[&aVIP&8] %luckperms_prefix%&7{player} &8» &f{message}'
-  user: '&8[&7USER&8] &7{player} &8» &7{message}'
-  default: '&8[&7Default&8] &7{player} &8» &7{message}'
+  Groups:
+    fundador: '&8[&4&lFUNDADOR&8] %luckperms_prefix%&7{player} &8» &f{message}'
+    admin: '&8[&cADMIN&8] %luckperms_prefix%&7{player} &8» &f{message}'
+    user: '&8[&7USER&8] &7{player} &8» &7{message}'
