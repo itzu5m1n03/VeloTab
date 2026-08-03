@@ -16,6 +16,7 @@
     </properties>
 
     <modules>
+        <module>velotab-common</module>
         <module>velotab-paper</module>
         <module>velotab-velocity</module>
         <module>velotab-universal</module>

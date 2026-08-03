@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 ItzUsman (itzusman.netlify.app)
+ * All rights reserved. This plugin and its source code are protected.
+ * Unauthorized modification, redistribution or rebranding is strictly prohibited.
+ */
 package me.itzusman.velotab.paper;
 
 import org.bukkit.Bukkit;
@@ -62,7 +67,7 @@ public final class VeloTabPaperPlugin extends JavaPlugin {
             });
         }
 
-        getLogger().info("VeloTab v" + getDescription().getVersion() + " por ItzUsman habilitado.");
+        me.itzusman.velotab.common.IntegrityCheck.printBranding(getLogger());
     }
 
     public void loadLang() {

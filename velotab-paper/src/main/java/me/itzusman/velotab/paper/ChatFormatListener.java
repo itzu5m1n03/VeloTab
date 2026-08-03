@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 ItzUsman (itzusman.netlify.app)
+ * All rights reserved. This plugin and its source code are protected.
+ * Unauthorized modification, redistribution or rebranding is strictly prohibited.
+ */
 package me.itzusman.velotab.paper;
 
 import net.kyori.adventure.text.Component;

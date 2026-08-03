@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 ItzUsman (itzusman.netlify.app)
+ * All rights reserved. This plugin and its source code are protected.
+ * Unauthorized modification, redistribution or rebranding is strictly prohibited.
+ */
 package me.itzusman.velotab.velocity;
 
 import com.google.inject.Inject;
@@ -15,7 +20,7 @@ import java.nio.file.Path;
         name = "VeloTab",
         version = "1.0.0",
         description = "Oculta comandos del tab del proxy segun el permiso real.",
-        authors = {"LobboMax"}
+        authors = {"ItzUsman"}
 )
 public class VeloTabVelocityPlugin {
 
@@ -38,6 +43,6 @@ public class VeloTabVelocityPlugin {
 
         server.getEventManager().register(this, new TabFilterListener(config));
 
-        logger.info("VeloTab (Velocity) habilitado.");
+        me.itzusman.velotab.common.IntegrityCheck.printBranding(java.util.logging.Logger.getLogger("VeloTab"));
     }
 }
