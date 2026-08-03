@@ -1,0 +1,5 @@
+name: VeloTab-Bungee
+version: 1.0.0
+main: com.lobbomax.velotab.bungee.VeloTabBungeePlugin
+author: LobboMax
+description: VeloTab para BungeeCord, Waterfall y FlameCord.

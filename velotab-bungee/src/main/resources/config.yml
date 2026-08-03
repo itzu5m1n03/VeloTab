@@ -1,0 +1,18 @@
+# =====================================================
+#  VeloTab (Bungee/Waterfall/FlameCord) - LobboMax
+# =====================================================
+
+Tab_Hide:
+  enable: true
+  
+  # Comandos que quieres ocultar SIEMPRE
+  force_hide:
+    - "bungee"
+    - "greload"
+    - "glist"
+    - "perms"
+    
+  # Comandos que NUNCA se ocultan
+  always_show:
+    - "server"
+    - "alert"

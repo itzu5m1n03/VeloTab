@@ -1,0 +1,23 @@
+name: VeloTab-Paper
+version: '1.0.0'
+main: com.lobbomax.velotab.paper.VeloTabPaperPlugin
+api-version: '1.20'
+author: LobboMax
+description: >
+  VeloTab: oculta comandos del tab automaticamente segun el permiso real,
+  y formatea el chat de forma personalizable por rango de LuckPerms.
+softdepend: [LuckPerms, PlaceholderAPI]
+
+commands:
+  velotab:
+    description: Recarga la configuracion de VeloTab.
+    permission: velotab.admin
+    usage: /<command> reload
+
+permissions:
+  velotab.admin:
+    description: Permite recargar el plugin.
+    default: op
+  velotab.bypass:
+    description: Ve TODOS los comandos en el tab, sin filtrar nada.
+    default: op

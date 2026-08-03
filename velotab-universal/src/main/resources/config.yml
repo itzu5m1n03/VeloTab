@@ -1,0 +1,41 @@
+# =====================================================
+#  VeloTab (Paper) - LobboMax
+# =====================================================
+
+# Idioma del plugin (es / en)
+language: es
+
+# --- AUTOCOMPLETADO (TAB) ---
+Tab_Hide:
+  enable: true
+  # Oculta automaticamente todos los comandos con prefijo (ej: chatmanager:staffchat)
+  hide_prefixed_commands: true
+  
+  # Comandos que quieres ocultar SIEMPRE
+  force_hide:
+    - "plugins"
+    - "pl"
+    - "version"
+    - "ver"
+    - "about"
+    - "icanhasbukkit"
+    - "help"
+    - "?"
+    
+  # Comandos que NUNCA se ocultan
+  always_show:
+    - "msg"
+    - "spawn"
+    - "kit"
+    - "warp"
+
+# --- FORMATO DE CHAT ---
+Chat_Format:
+  Enable: true
+  Default_Format: '&8[%luckperms_prefix%&8] &7{player} &8» &7{message}'
+  
+  fundador: '&8[&4&lFUNDADOR&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  admin: '&8[&cADMIN&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  vip: '&8[&aVIP&8] %luckperms_prefix%&7{player} &8» &f{message}'
+  user: '&8[&7USER&8] &7{player} &8» &7{message}'
+  default: '&8[&7Default&8] &7{player} &8» &7{message}'
