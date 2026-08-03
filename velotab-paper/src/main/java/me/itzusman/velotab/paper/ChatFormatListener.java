@@ -6,7 +6,7 @@
 package me.itzusman.velotab.paper;
 
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.TextReplacementConfig;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
@@ -20,14 +20,16 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 
-/**
- * Formatea el chat conservando eventos de hover/click y soportando PlaceholderAPI.
- */
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 public class ChatFormatListener implements Listener {
 
     private final VeloTabPaperPlugin plugin;
     private final boolean placeholderApiPresent;
     private final LegacyComponentSerializer serializer = LegacyComponentSerializer.legacyAmpersand();
+    private final MiniMessage miniMessage = MiniMessage.miniMessage();
+    private final Pattern hexPattern = Pattern.compile("&#([A-Fa-f0-9]{6})|#([A-Fa-f0-9]{6})");
 
     public ChatFormatListener(VeloTabPaperPlugin plugin, boolean placeholderApiPresent) {
         this.plugin = plugin;
@@ -36,9 +38,7 @@ public class ChatFormatListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onChat(AsyncChatEvent event) {
-        if (!plugin.getConfig().getBoolean("Chat_Format.Enable", true)) {
-            return;
-        }
+        if (!plugin.getConfig().getBoolean("Chat_Format.Enable", true)) return;
 
         Player player = event.getPlayer();
         String format = resolveFormat(player);
@@ -58,7 +58,7 @@ public class ChatFormatListener implements Listener {
             } catch (Exception ignored) {}
         }
 
-        // Reemplazamos los placeholders en el formato (excepto el mensaje)
+        // Aplicar PAPI primero
         String finalFormat = format
                 .replace("%luckperms_prefix%", prefix)
                 .replace("%luckperms_suffix%", suffix)
@@ -68,24 +68,37 @@ public class ChatFormatListener implements Listener {
             finalFormat = PlaceholderAPI.setPlaceholders(player, finalFormat);
         }
 
-        finalFormat = translateColors(finalFormat);
+        // Traducir colores HEX y Legados
+        finalFormat = translateHexColorCodes(finalFormat);
+        finalFormat = org.bukkit.ChatColor.translateAlternateColorCodes('&', finalFormat);
 
-        // Separamos el formato en prefijo y sufijo respecto al placeholder {message}
+        // Separar por {message}
         String[] parts = finalFormat.split("\\{message\\}", 2);
+        
+        // Usar MiniMessage para permitir Hover/Click en el formato si se desea
+        // Pero para compatibilidad con colores legacy usamos el serializer
         Component prefixComp = serializer.deserialize(parts[0]);
         Component suffixComp = parts.length > 1 ? serializer.deserialize(parts[1]) : Component.empty();
 
-        // Aplicamos el renderer conservando el componente original del mensaje (hover/click)
+        // Aplicar Hover al nombre si esta configurado
+        String hoverText = plugin.getConfig().getString("Chat_Format.Player_Hover", "");
+        if (!hoverText.isEmpty()) {
+            if (placeholderApiPresent) hoverText = PlaceholderAPI.setPlaceholders(player, hoverText);
+            hoverText = translateHexColorCodes(hoverText);
+            hoverText = org.bukkit.ChatColor.translateAlternateColorCodes('&', hoverText);
+            
+            // Reemplazar el nombre del jugador en el prefijo con un componente con hover
+            // Esto es mas complejo, por ahora aplicamos el renderer directamente
+        }
+
         event.renderer((source, sourceDisplayName, message, viewer) -> 
             prefixComp.append(message).append(suffixComp)
         );
     }
 
     private String resolveFormat(Player player) {
-        ConfigurationSection section = plugin.getConfig().getConfigurationSection("Chat_Format");
-        if (section == null) return "&7{player}&8: &f{message}";
-
-        if (plugin.isLuckPermsPresent()) {
+        ConfigurationSection section = plugin.getConfig().getConfigurationSection("Chat_Format.Groups");
+        if (section != null && plugin.isLuckPermsPresent()) {
             try {
                 LuckPerms luckPerms = LuckPermsProvider.get();
                 User user = luckPerms.getUserManager().getUser(player.getUniqueId());
@@ -94,20 +107,19 @@ public class ChatFormatListener implements Listener {
                     if (primaryGroup != null && section.contains(primaryGroup)) {
                         return section.getString(primaryGroup);
                     }
-                    for (String inherited : user.getInheritedGroups(user.getQueryOptions())
-                            .stream().map(g -> g.getName()).toList()) {
-                        if (section.contains(inherited)) {
-                            return section.getString(inherited);
-                        }
-                    }
                 }
             } catch (Exception ignored) {}
         }
-
-        return section.getString("Default_Format", "&7{player}&8: &f{message}");
+        return plugin.getConfig().getString("Chat_Format.Default_Format", "&8[%luckperms_prefix%&8] &7{player} &8» &7{message}");
     }
 
-    private String translateColors(String text) {
-        return org.bukkit.ChatColor.translateAlternateColorCodes('&', text);
+    private String translateHexColorCodes(String message) {
+        Matcher matcher = hexPattern.matcher(message);
+        StringBuilder buffer = new StringBuilder(message.length() + 4 * 8);
+        while (matcher.find()) {
+            String group = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
+            matcher.appendReplacement(buffer, "§x§" + group.charAt(0) + "§" + group.charAt(1) + "§" + group.charAt(2) + "§" + group.charAt(3) + "§" + group.charAt(4) + "§" + group.charAt(5));
+        }
+        return matcher.appendTail(buffer).toString();
     }
 }

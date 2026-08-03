@@ -9,7 +9,6 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Bukkit;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scoreboard.DisplaySlot;
@@ -17,13 +16,15 @@ import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class DisplayManager {
 
     private final VeloTabPaperPlugin plugin;
     private final LegacyComponentSerializer serializer = LegacyComponentSerializer.legacyAmpersand();
+    private final Pattern hexPattern = Pattern.compile("&#([A-Fa-f0-9]{6})|#([A-Fa-f0-9]{6})");
     private BukkitRunnable updateTask;
 
     public DisplayManager(VeloTabPaperPlugin plugin) {
@@ -50,10 +51,6 @@ public class DisplayManager {
             updateTask.cancel();
             updateTask = null;
         }
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            player.sendPlayerListHeaderAndFooter(Component.empty(), Component.empty());
-            player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
-        }
     }
 
     private void updateTabList(Player player) {
@@ -66,11 +63,6 @@ public class DisplayManager {
         Component footer = buildComponent(player, footerLines);
 
         player.sendPlayerListHeaderAndFooter(header, footer);
-        
-        // Sorting logic
-        if (plugin.getConfig().getBoolean("Sorting.Enable", true)) {
-            updatePlayerSorting(player);
-        }
     }
 
     private void updateScoreboard(Player player) {
@@ -84,31 +76,18 @@ public class DisplayManager {
 
         Objective obj = board.getObjective("velotab");
         if (obj == null) {
-            obj = board.registerNewObjective("velotab", "dummy", serializer.deserialize(plugin.getConfig().getString("Scoreboard.Title", "&bVeloTab")));
+            String title = plugin.getConfig().getString("Scoreboard.Title", "&bVeloTab");
+            obj = board.registerNewObjective("velotab", "dummy", serializer.deserialize(format(player, title)));
             obj.setDisplaySlot(DisplaySlot.SIDEBAR);
         }
 
         List<String> lines = plugin.getConfig().getStringList("Scoreboard.Lines");
-        // Simple scoreboard update logic
         int score = lines.size();
         for (String line : lines) {
             String formatted = format(player, line);
-            // In modern Paper, we'd use components, but for compatibility we use strings
+            if (formatted.length() > 40) formatted = formatted.substring(0, 40);
             obj.getScore(formatted).setScore(score--);
         }
-    }
-
-    private void updatePlayerSorting(Player player) {
-        Scoreboard board = player.getScoreboard();
-        String group = "default";
-        // Logic to get group from LuckPerms... simplified here
-        String priority = plugin.getConfig().getString("Sorting.Groups." + group, "99");
-        String teamName = priority + player.getName();
-        if (teamName.length() > 16) teamName = teamName.substring(0, 16);
-
-        Team team = board.getTeam(teamName);
-        if (team == null) team = board.registerNewTeam(teamName);
-        if (!team.hasEntry(player.getName())) team.addEntry(player.getName());
     }
 
     private Component buildComponent(Player player, List<String> lines) {
@@ -124,6 +103,17 @@ public class DisplayManager {
         if (plugin.isPlaceholderApiPresent()) {
             text = PlaceholderAPI.setPlaceholders(player, text);
         }
+        text = translateHexColorCodes(text);
         return org.bukkit.ChatColor.translateAlternateColorCodes('&', text);
+    }
+
+    private String translateHexColorCodes(String message) {
+        Matcher matcher = hexPattern.matcher(message);
+        StringBuilder buffer = new StringBuilder(message.length() + 4 * 8);
+        while (matcher.find()) {
+            String group = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
+            matcher.appendReplacement(buffer, "§x§" + group.charAt(0) + "§" + group.charAt(1) + "§" + group.charAt(2) + "§" + group.charAt(3) + "§" + group.charAt(4) + "§" + group.charAt(5));
+        }
+        return matcher.appendTail(buffer).toString();
     }
 }
