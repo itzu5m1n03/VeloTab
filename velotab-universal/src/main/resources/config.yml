@@ -33,17 +33,16 @@ TabList:
   Enable: true
   Update_Interval: 20
   Header:
-    - "<gradient:#fbff00:#ff0000><bold>LOBOMAX.XYZ</bold></gradient>"
+    - "<gradient:#fbff00:#ff0000><bold>VELOTAB NETWORK</bold></gradient>"
     - "&7¡Bienvenido &e%player_name%&7!"
   Footer:
     - "&7Jugadores: &e%bungee_total% &8| &7Ping: &e%player_ping%ms"
     - "<gold>itzusm.netlify.app</gold>"
 
 # --- SCOREBOARD ---
-# Diseño solicitado por ItzUsman
 Scoreboard:
   Enable: true
-  Title: "<gradient:#fbff00:#ff0000><bold>LOBOMAX</bold></gradient>"
+  Title: "<gradient:#fbff00:#ff0000><bold>VELOTAB</bold></gradient>"
   Lines:
     - "&7%server_time_dd/MM/yyyy%"
     - ""
@@ -56,10 +55,9 @@ Scoreboard:
     - "&fLatencia: &a%player_ping%ms"
     - "&fConectados: &a%bungee_total%"
     - ""
-    - "&eLOBOMAX.XYZ"
+    - "&eitzusm.netlify.app"
 
 # --- ORDEN DE RANGOS (Sorting) ---
-# Los jugadores se ordenaran en el Tab segun su prioridad
 Sorting:
   Enable: true
   Groups:
@@ -74,8 +72,12 @@ Sorting:
 Chat_Format:
   Enable: true
   Default_Format: '&8[%luckperms_prefix%&8] &7{player} &8» &7{message}'
-  # Al poner el raton sobre el nombre del jugador en el chat
-  Player_Hover: "&eInformacion de &b%player_name%&7:\n&fRango: %luckperms_prefix%\n&fPing: &a%player_ping%ms"
+  # Texto que aparece al poner el raton sobre el nombre del jugador
+  Player_Hover: |-
+    &eInformacion de &b%player_name%&7:
+    &fRango: %luckperms_prefix%
+    &fPing: &a%player_ping%ms
+    &7Haz click para enviarle un mensaje.
   Groups:
     admin: '&8[&cADMIN&8] %luckperms_prefix%&7{player} &8» &f{message}'
     user: '&8[&7USER&8] &7{player} &8» &7{message}'

@@ -6,6 +6,7 @@
 package me.itzusman.velotab.paper;
 
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.luckperms.api.LuckPerms;
@@ -27,7 +28,7 @@ public class ChatFormatListener implements Listener {
 
     private final VeloTabPaperPlugin plugin;
     private final boolean placeholderApiPresent;
-    private final LegacyComponentSerializer serializer = LegacyComponentSerializer.legacyAmpersand();
+    private final LegacyComponentSerializer legacySerializer = LegacyComponentSerializer.legacyAmpersand();
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
     private final Pattern hexPattern = Pattern.compile("&#([A-Fa-f0-9]{6})|#([A-Fa-f0-9]{6})");
 
@@ -43,8 +44,8 @@ public class ChatFormatListener implements Listener {
         Player player = event.getPlayer();
         String format = resolveFormat(player);
 
-        String prefix = "";
-        String suffix = "";
+        String prefixLP = "";
+        String suffixLP = "";
 
         if (plugin.isLuckPermsPresent()) {
             try {
@@ -52,48 +53,68 @@ public class ChatFormatListener implements Listener {
                 User user = luckPerms.getUserManager().getUser(player.getUniqueId());
                 if (user != null) {
                     CachedMetaData metaData = user.getCachedData().getMetaData();
-                    prefix = metaData.getPrefix() != null ? metaData.getPrefix() : "";
-                    suffix = metaData.getSuffix() != null ? metaData.getSuffix() : "";
+                    prefixLP = metaData.getPrefix() != null ? metaData.getPrefix() : "";
+                    suffixLP = metaData.getSuffix() != null ? metaData.getSuffix() : "";
                 }
             } catch (Exception ignored) {}
         }
 
-        // Aplicar PAPI primero
-        String finalFormat = format
-                .replace("%luckperms_prefix%", prefix)
-                .replace("%luckperms_suffix%", suffix)
-                .replace("{player}", player.getName());
+        // Reemplazo de placeholders base
+        String baseFormat = format
+                .replace("%luckperms_prefix%", prefixLP)
+                .replace("%luckperms_suffix%", suffixLP);
 
         if (placeholderApiPresent) {
-            finalFormat = PlaceholderAPI.setPlaceholders(player, finalFormat);
+            baseFormat = PlaceholderAPI.setPlaceholders(player, baseFormat);
         }
 
-        // Traducir colores HEX y Legados
-        finalFormat = translateHexColorCodes(finalFormat);
-        finalFormat = org.bukkit.ChatColor.translateAlternateColorCodes('&', finalFormat);
+        // Dividimos el formato en 3 partes: Antes del nombre, Nombre, Despues del nombre (incluyendo mensaje)
+        String[] parts = baseFormat.split("\\{player\\}", 2);
+        if (parts.length < 2) return; // Formato invalido
 
-        // Separar por {message}
-        String[] parts = finalFormat.split("\\{message\\}", 2);
+        final Component prefixComp = formatComponent(player, parts[0]);
         
-        // Usar MiniMessage para permitir Hover/Click en el formato si se desea
-        // Pero para compatibilidad con colores legacy usamos el serializer
-        Component prefixComp = serializer.deserialize(parts[0]);
-        Component suffixComp = parts.length > 1 ? serializer.deserialize(parts[1]) : Component.empty();
-
-        // Aplicar Hover al nombre si esta configurado
+        // El nombre del jugador con Hover
+        Component nameComp = Component.text(player.getName());
         String hoverText = plugin.getConfig().getString("Chat_Format.Player_Hover", "");
         if (!hoverText.isEmpty()) {
-            if (placeholderApiPresent) hoverText = PlaceholderAPI.setPlaceholders(player, hoverText);
-            hoverText = translateHexColorCodes(hoverText);
-            hoverText = org.bukkit.ChatColor.translateAlternateColorCodes('&', hoverText);
-            
-            // Reemplazar el nombre del jugador en el prefijo con un componente con hover
-            // Esto es mas complejo, por ahora aplicamos el renderer directamente
+            nameComp = nameComp.hoverEvent(HoverEvent.showText(formatComponent(player, hoverText)));
         }
+        final Component playerNameComp = nameComp;
+
+        // El resto del formato que contiene {message}
+        String afterPlayer = parts[1];
+        String[] messageParts = afterPlayer.split("\\{message\\}", 2);
+        
+        final Component midComp = formatComponent(player, messageParts[0]);
+        final Component suffixComp = messageParts.length > 1 ? formatComponent(player, messageParts[1]) : Component.empty();
 
         event.renderer((source, sourceDisplayName, message, viewer) -> 
-            prefixComp.append(message).append(suffixComp)
+            prefixComp.append(playerNameComp).append(midComp).append(message).append(suffixComp)
         );
+    }
+
+    private Component formatComponent(Player player, String text) {
+        if (placeholderApiPresent) {
+            text = PlaceholderAPI.setPlaceholders(player, text);
+        }
+        
+        if (text.contains("<") && text.contains(">")) {
+            return miniMessage.deserialize(legacyToMiniMessage(text));
+        } else {
+            text = translateHexColorCodes(text);
+            return legacySerializer.deserialize(org.bukkit.ChatColor.translateAlternateColorCodes('&', text));
+        }
+    }
+
+    private String legacyToMiniMessage(String text) {
+        return text.replace("&0", "<black>").replace("&1", "<dark_blue>").replace("&2", "<dark_green>")
+                   .replace("&3", "<dark_aqua>").replace("&4", "<dark_red>").replace("&5", "<dark_purple>")
+                   .replace("&6", "<gold>").replace("&7", "<gray>").replace("&8", "<dark_gray>")
+                   .replace("&9", "<blue>").replace("&a", "<green>").replace("&b", "<aqua>")
+                   .replace("&c", "<red>").replace("&d", "<light_purple>").replace("&e", "<yellow>")
+                   .replace("&f", "<white>").replace("&l", "<bold>").replace("&m", "<strikethrough>")
+                   .replace("&n", "<underlined>").replace("&o", "<italic>").replace("&r", "<reset>");
     }
 
     private String resolveFormat(Player player) {

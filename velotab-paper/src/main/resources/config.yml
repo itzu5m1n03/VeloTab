@@ -28,7 +28,7 @@ TabList:
   Enable: true
   Update_Interval: 20 # En ticks (20 = 1 segundo)
   Header:
-    - "<gradient:#fbff00:#ff0000><bold>LOBOMAX.XYZ</bold></gradient>"
+    - "<gradient:#fbff00:#ff0000><bold>VELOTAB.NET</bold></gradient>"
     - "&7¡Bienvenido &e%player_name%&7!"
   Footer:
     - "&7Jugadores: &e%bungee_total% &8| &7Ping: &e%player_ping%ms"
@@ -38,7 +38,7 @@ TabList:
 # Soporta animaciones y colores RGB
 Scoreboard:
   Enable: true
-  Title: "<gradient:#fbff00:#ff0000><bold>LOBOMAX</bold></gradient>"
+  Title: "<gradient:#fbff00:#ff0000><bold>VELOTAB</bold></gradient>"
   Lines:
     - "&8&m-------------------"
     - "&fNombre: &e%player_name%"
@@ -47,7 +47,7 @@ Scoreboard:
     - "&fLatencia: &e%player_ping%ms"
     - "&fConectados: &e%bungee_total%"
     - ""
-    - "&eLOBOMAX.XYZ"
+    - "&eVELOTAB.NET"
     - "&8&m-------------------"
 
 # --- ORDEN DE RANGOS (Sorting) ---
