@@ -11,6 +11,9 @@ import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
+import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
+import me.itzusman.velotab.common.IntegrityCheck;
+import me.itzusman.velotab.common.UpdateChecker;
 import org.slf4j.Logger;
 
 import java.nio.file.Path;
@@ -18,8 +21,8 @@ import java.nio.file.Path;
 @Plugin(
         id = "velotab",
         name = "VeloTab",
-        version = "1.0.0",
-        description = "Oculta comandos del tab del proxy segun el permiso real.",
+        version = "1.3.1",
+        description = "Suite completa de TabList y Seguridad creada por ItzUsman.",
         authors = {"ItzUsman"}
 )
 public class VeloTabVelocityPlugin {
@@ -28,6 +31,7 @@ public class VeloTabVelocityPlugin {
     private final Logger logger;
     private final Path dataDirectory;
     private VeloTabConfig config;
+    public static final MinecraftChannelIdentifier SYNC_CHANNEL = MinecraftChannelIdentifier.from("velotab:sync");
 
     @Inject
     public VeloTabVelocityPlugin(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory) {
@@ -42,7 +46,15 @@ public class VeloTabVelocityPlugin {
         this.config.load();
 
         server.getEventManager().register(this, new TabFilterListener(config));
+        server.getChannelRegistrar().register(SYNC_CHANNEL);
 
-        me.itzusman.velotab.common.IntegrityCheck.printBranding(java.util.logging.Logger.getLogger("VeloTab"));
+        // Update Checker
+        new UpdateChecker("1.3.1").getVersion(latest -> {
+            if (new UpdateChecker("1.3.1").isNewer(latest)) {
+                logger.warn("¡Nueva version de VeloTab disponible: " + latest + "!");
+            }
+        });
+
+        IntegrityCheck.printBranding(java.util.logging.Logger.getLogger("VeloTab"));
     }
 }

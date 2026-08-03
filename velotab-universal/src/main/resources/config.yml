@@ -6,6 +6,16 @@
 # Idioma del plugin (es / en)
 language: es
 
+# Comprobar actualizaciones automaticamente
+update_checker: true
+
+# --- SINCRONIZACION DE RED ---
+# Si se activa en el Proxy, enviara la config a todos los servidores conectados.
+# En los servidores de juego, esto permitira recibir la config del Proxy automaticamente.
+network_sync:
+  enable: true
+  is_master: false # Solo poner en true en el Proxy (Velocity/Bungee)
+
 # --- SEGURIDAD Y TAB ---
 Tab_Hide:
   enable: true

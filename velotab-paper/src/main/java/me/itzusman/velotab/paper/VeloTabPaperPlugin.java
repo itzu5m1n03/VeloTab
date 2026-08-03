@@ -5,18 +5,22 @@
  */
 package me.itzusman.velotab.paper;
 
+import me.itzusman.velotab.common.IntegrityCheck;
+import me.itzusman.velotab.common.UpdateChecker;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.plugin.messaging.PluginMessageListener;
 
 import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 
-public final class VeloTabPaperPlugin extends JavaPlugin {
+public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessageListener {
 
     private TabCompleteListener tabCompleteListener;
     private ChatFormatListener chatFormatListener;
@@ -38,36 +42,34 @@ public final class VeloTabPaperPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(tabCompleteListener, this);
         getServer().getPluginManager().registerEvents(chatFormatListener, this);
 
-        if (getCommand("velotab") != null) {
-            getCommand("velotab").setExecutor((sender, command, label, args) -> {
-                if (!sender.hasPermission("velotab.admin")) {
-                    sender.sendMessage(getLangMessage("no-permission"));
-                    return true;
-                }
+        // Registro de canal para sincronizacion
+        if (getConfig().getBoolean("network_sync.enable", true)) {
+            getServer().getMessenger().registerIncomingPluginChannel(this, "velotab:sync", this);
+            getServer().getMessenger().registerOutgoingPluginChannel(this, "velotab:sync");
+        }
 
-                if (args.length > 0) {
-                    if (args[0].equalsIgnoreCase("reload")) {
-                        reloadConfig();
-                        loadLang();
-                        sender.sendMessage(getLangMessage("reload-success"));
-                        return true;
-                    }
-                    if (args[0].equalsIgnoreCase("info")) {
-                        sender.sendMessage(getLangMessage("info-header"));
-                        sender.sendMessage(getLangMessage("info-version").replace("{version}", getDescription().getVersion()));
-                        sender.sendMessage(getLangMessage("info-creator").replace("{link}", "itzusman.netlify.app"));
-                        sender.sendMessage(getLangMessage("info-luckperms").replace("{status}", luckPermsPresent ? getLangMessage("status-enabled") : getLangMessage("status-disabled")));
-                        sender.sendMessage(getLangMessage("info-placeholderapi").replace("{status}", placeholderApiPresent ? getLangMessage("status-enabled") : getLangMessage("status-disabled")));
-                        return true;
-                    }
+        // Update Checker
+        if (getConfig().getBoolean("update_checker", true)) {
+            new UpdateChecker(getDescription().getVersion()).getVersion(latest -> {
+                if (new UpdateChecker(getDescription().getVersion()).isNewer(latest)) {
+                    getLogger().warning("¡Nueva version disponible: " + latest + "! Descargala en GitHub.");
                 }
-                
-                sender.sendMessage("§e[VeloTab] Uso: /velotab <info|reload>");
-                return true;
             });
         }
 
-        me.itzusman.velotab.common.IntegrityCheck.printBranding(getLogger());
+        if (getCommand("velotab") != null) {
+            getCommand("velotab").setExecutor(new VeloTabCommand(this));
+        }
+
+        IntegrityCheck.printBranding(getLogger());
+    }
+
+    @Override
+    public void onPluginMessageReceived(String channel, Player player, byte[] message) {
+        if (!channel.equals("velotab:sync")) return;
+        // Aqui se recibiria la config serializada del Proxy para auto-actualizarse
+        getLogger().info("Recibida actualizacion de configuracion desde el Proxy.");
+        // (Logica de deserializacion y recarga en caliente)
     }
 
     public void loadLang() {
@@ -94,11 +96,6 @@ public final class VeloTabPaperPlugin extends JavaPlugin {
         return ChatColor.translateAlternateColorCodes('&', msg);
     }
 
-    public boolean isPlaceholderApiPresent() {
-        return placeholderApiPresent;
-    }
-
-    public boolean isLuckPermsPresent() {
-        return luckPermsPresent;
-    }
+    public boolean isPlaceholderApiPresent() { return placeholderApiPresent; }
+    public boolean isLuckPermsPresent() { return luckPermsPresent; }
 }
