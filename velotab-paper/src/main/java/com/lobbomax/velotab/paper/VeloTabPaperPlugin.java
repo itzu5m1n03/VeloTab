@@ -1,7 +1,15 @@
 package com.lobbomax.velotab.paper;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
+
+import java.io.File;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 
 public final class VeloTabPaperPlugin extends JavaPlugin {
 
@@ -9,18 +17,15 @@ public final class VeloTabPaperPlugin extends JavaPlugin {
     private ChatFormatListener chatFormatListener;
     private boolean placeholderApiPresent;
     private boolean luckPermsPresent;
+    private FileConfiguration langConfig;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        loadLang();
 
         placeholderApiPresent = Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null;
         luckPermsPresent = Bukkit.getPluginManager().getPlugin("LuckPerms") != null;
-
-        if (!luckPermsPresent) {
-            getLogger().warning("No se encontro LuckPerms. El formato de chat por rango "
-                    + "y el prefijo/sufijo no van a funcionar hasta que lo instales.");
-        }
 
         tabCompleteListener = new TabCompleteListener(this);
         chatFormatListener = new ChatFormatListener(this, placeholderApiPresent);
@@ -31,16 +36,56 @@ public final class VeloTabPaperPlugin extends JavaPlugin {
         if (getCommand("velotab") != null) {
             getCommand("velotab").setExecutor((sender, command, label, args) -> {
                 if (!sender.hasPermission("velotab.admin")) {
-                    sender.sendMessage("§cNo tienes permiso para ejecutar este comando.");
+                    sender.sendMessage(getLangMessage("no-permission"));
                     return true;
                 }
-                reloadConfig();
-                sender.sendMessage("§a[VeloTab] Configuracion recargada.");
+
+                if (args.length > 0) {
+                    if (args[0].equalsIgnoreCase("reload")) {
+                        reloadConfig();
+                        loadLang();
+                        sender.sendMessage(getLangMessage("reload-success"));
+                        return true;
+                    }
+                    if (args[0].equalsIgnoreCase("info")) {
+                        sender.sendMessage(getLangMessage("info-header"));
+                        sender.sendMessage(getLangMessage("info-version").replace("{version}", getDescription().getVersion()));
+                        sender.sendMessage(getLangMessage("info-author").replace("{author}", "LobboMax"));
+                        sender.sendMessage(getLangMessage("info-luckperms").replace("{status}", luckPermsPresent ? getLangMessage("status-enabled") : getLangMessage("status-disabled")));
+                        sender.sendMessage(getLangMessage("info-placeholderapi").replace("{status}", placeholderApiPresent ? getLangMessage("status-enabled") : getLangMessage("status-disabled")));
+                        return true;
+                    }
+                }
+                
+                sender.sendMessage("§eUso: /velotab <info|reload>");
                 return true;
             });
         }
 
-        getLogger().info("VeloTab (Paper) habilitado.");
+        getLogger().info("VeloTab (Paper) habilitado con soporte multi-idioma.");
+    }
+
+    public void loadLang() {
+        String lang = getConfig().getString("language", "es").toLowerCase();
+        File langFile = new File(getDataFolder(), "lang/" + lang + ".yml");
+        
+        if (!langFile.exists()) {
+            saveResource("lang/es.yml", false);
+            saveResource("lang/en.yml", false);
+        }
+        
+        langConfig = YamlConfiguration.loadConfiguration(langFile);
+        
+        // Cargar valores por defecto del jar si faltan en el archivo
+        InputStream defLangStream = getResource("lang/" + lang + ".yml");
+        if (defLangStream != null) {
+            langConfig.setDefaults(YamlConfiguration.loadConfiguration(new InputStreamReader(defLangStream, StandardCharsets.UTF_8)));
+        }
+    }
+
+    public String getLangMessage(String path) {
+        String msg = langConfig.getString(path, "Message missing: " + path);
+        return ChatColor.translateAlternateColorCodes('&', msg);
     }
 
     public boolean isPlaceholderApiPresent() {

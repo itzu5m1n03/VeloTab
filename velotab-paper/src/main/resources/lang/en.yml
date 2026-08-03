@@ -1,0 +1,11 @@
+# English Messages
+no-permission: "&cYou do not have permission to execute this command."
+command-blocked: "&cThis command has been blocked by the security system."
+reload-success: "&a[VeloTab] Configuration and languages reloaded successfully!"
+info-header: "&8&m      &r &e&lVeloTab Info &8&m      "
+info-version: "&7Version: &f{version}"
+info-author: "&7Author: &f{author}"
+info-luckperms: "&7LuckPerms: {status}"
+info-placeholderapi: "&7PlaceholderAPI: {status}"
+status-enabled: "&aEnabled"
+status-disabled: "&cDisabled"

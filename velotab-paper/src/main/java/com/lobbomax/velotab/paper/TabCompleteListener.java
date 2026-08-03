@@ -80,6 +80,33 @@ public class TabCompleteListener implements Listener {
         }
     }
 
+    @EventHandler
+    public void onCommandPreProcess(org.bukkit.event.player.PlayerCommandPreprocessEvent event) {
+        if (!plugin.getConfig().getBoolean("Tab_Hide.enable", true)) return;
+        
+        Player player = event.getPlayer();
+        if (player.hasPermission("velotab.bypass")) return;
+
+        String message = event.getMessage().substring(1);
+        String raw = message.split(" ")[0];
+        String base = stripPrefix(raw).toLowerCase();
+
+        Set<String> forceHide = getSet("Tab_Hide.force_hide");
+        if (forceHide.contains(base)) {
+            event.setCancelled(true);
+            player.sendMessage(plugin.getLangMessage("command-blocked"));
+            return;
+        }
+
+        Command cmd = Bukkit.getCommandMap().getCommand(raw);
+        if (cmd == null) cmd = Bukkit.getCommandMap().getCommand(base);
+
+        if (!hasPermission(player, cmd, raw, base)) {
+            event.setCancelled(true);
+            player.sendMessage(plugin.getLangMessage("no-permission"));
+        }
+    }
+
     private boolean hasPermission(Player player, Command cmd, String raw, String base) {
         if (cmd != null) {
             String perm = cmd.getPermission();
