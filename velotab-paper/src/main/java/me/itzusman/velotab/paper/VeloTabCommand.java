@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 ItzUsman (itzusman.netlify.app)
+ * Copyright (c) 2026 ItzUsman (itzusm.netlify.app)
  * All rights reserved. This plugin and its source code are protected.
  * Unauthorized modification, redistribution or rebranding is strictly prohibited.
  */
@@ -35,7 +35,7 @@ public class VeloTabCommand implements CommandExecutor {
             if (args[0].equalsIgnoreCase("info")) {
                 sender.sendMessage(plugin.getLangMessage("info-header"));
                 sender.sendMessage(plugin.getLangMessage("info-version").replace("{version}", plugin.getDescription().getVersion()));
-                sender.sendMessage(plugin.getLangMessage("info-creator").replace("{link}", "itzusman.netlify.app"));
+                sender.sendMessage(plugin.getLangMessage("info-creator").replace("{link}", "itzusm.netlify.app"));
                 sender.sendMessage(plugin.getLangMessage("info-luckperms").replace("{status}", plugin.isLuckPermsPresent() ? plugin.getLangMessage("status-enabled") : plugin.getLangMessage("status-disabled")));
                 sender.sendMessage(plugin.getLangMessage("info-placeholderapi").replace("{status}", plugin.isPlaceholderApiPresent() ? plugin.getLangMessage("status-enabled") : plugin.getLangMessage("status-disabled")));
                 return true;

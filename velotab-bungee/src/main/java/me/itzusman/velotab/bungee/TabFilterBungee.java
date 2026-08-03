@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 ItzUsman (itzusman.netlify.app)
+ * Copyright (c) 2026 ItzUsman (itzusm.netlify.app)
  * All rights reserved. This plugin and its source code are protected.
  * Unauthorized modification, redistribution or rebranding is strictly prohibited.
  */

@@ -3,7 +3,7 @@ version: '1.2.0'
 main: me.itzusman.velotab.paper.VeloTabPaperPlugin
 api-version: '1.20'
 author: ItzUsman
-website: itzusman.netlify.app
+website: itzusm.netlify.app
 description: >
   VeloTab: Suite completa de TabList, Scoreboard y Seguridad de comandos.
   Creado por ItzUsman.

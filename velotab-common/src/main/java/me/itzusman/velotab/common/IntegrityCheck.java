@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 ItzUsman (itzusman.netlify.app)
+ * Copyright (c) 2026 ItzUsman (itzusm.netlify.app)
  * All rights reserved. This plugin and its source code are protected.
  * Unauthorized modification, redistribution or rebranding is strictly prohibited.
  */
@@ -13,9 +13,9 @@ import java.util.Base64;
 public class IntegrityCheck {
     
     // "SXR6VXNtYW4=" es "ItzUsman" en Base64
-    // "aXR6dXNtYW4ubmV0bGlmeS5hcHA=" es "itzusman.netlify.app" en Base64
+    // "aXR6dXNtLm5ldGxpZnkuYXBw" es "itzusm.netlify.app" en Base64
     private static final String AUTHOR_ENC = "SXR6VXNtYW4=";
-    private static final String WEB_ENC = "aXR6dXNtYW4ubmV0bGlmeS5hcHA=";
+    private static final String WEB_ENC = "aXR6dXNtLm5ldGxpZnkuYXBw";
 
     public static String getAuthor() {
         return new String(Base64.getDecoder().decode(AUTHOR_ENC));
@@ -27,7 +27,7 @@ public class IntegrityCheck {
 
     public static void printBranding(java.util.logging.Logger logger) {
         logger.info("------------------------------------------------");
-        logger.info(" VeloTab v1.3.0 - Official Release");
+        logger.info(" VeloTab v1.4.1 - Official Release");
         logger.info(" Created by: " + getAuthor());
         logger.info(" Website: " + getWebsite());
         logger.info(" This plugin is protected by copyright.");

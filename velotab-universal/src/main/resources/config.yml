@@ -1,6 +1,6 @@
 # =====================================================
 #  VeloTab - Creado por ItzUsman
-#  Web: itzusman.netlify.app
+#  Web: itzusm.netlify.app
 # =====================================================
 
 # Idioma del plugin (es / en)
@@ -42,7 +42,7 @@ TabList:
     - "&7¡Bienvenido &e%player_name%&7!"
   Footer:
     - "&7Jugadores: &e%bungee_total% &8| &7Ping: &e%player_ping%ms"
-    - "<gold>itzusman.netlify.app</gold>"
+    - "<gold>itzusm.netlify.app</gold>"
 
 # --- SCOREBOARD ---
 # Soporta animaciones y colores RGB

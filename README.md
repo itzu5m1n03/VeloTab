@@ -1,5 +1,5 @@
 # VeloTab
-**Creado por ItzUsman** | [itzusman.netlify.app](https://itzusman.netlify.app)
+**Creado por ItzUsman** | [itzusm.netlify.app](https://itzusm.netlify.app)
 
 VeloTab es una suite integral para la gestión de servidores de Minecraft, diseñada para ofrecer seguridad, estética y control total sobre la experiencia del jugador.
 
