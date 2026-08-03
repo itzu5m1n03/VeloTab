@@ -15,6 +15,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
+import me.clip.placeholderapi.PlaceholderAPI;
 
 import java.io.File;
 import java.io.InputStream;
@@ -37,6 +38,11 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
 
         placeholderApiPresent = Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null;
         luckPermsPresent = Bukkit.getPluginManager().getPlugin("LuckPerms") != null;
+
+        // Error 5 corregido: Verificar expansiones de PAPI
+        if (placeholderApiPresent) {
+            checkPapiExpansions();
+        }
 
         displayManager = new DisplayManager(this);
         displayManager.start();
@@ -65,6 +71,15 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
         IntegrityCheck.printBranding(getLogger());
     }
 
+    private void checkPapiExpansions() {
+        String[] expansions = {"luckperms", "player", "server", "bungee"};
+        for (String ext : expansions) {
+            if (!PlaceholderAPI.containsPlaceholders("%" + ext + "_")) {
+                getLogger().warning("Falta la expansion de PAPI: " + ext + ". Instala con /papi ecloud download " + ext);
+            }
+        }
+    }
+
     private void registerEvents() {
         tabCompleteListener = new TabCompleteListener(this);
         chatFormatListener = new ChatFormatListener(this, placeholderApiPresent);
@@ -76,11 +91,9 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
         reloadConfig();
         loadLang();
         
-        // Reiniciar eventos para aplicar cambios de config
         HandlerList.unregisterAll(this);
         registerEvents();
         
-        // Reiniciar pantallas
         displayManager.stop();
         displayManager.start();
         

@@ -14,6 +14,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerCommandSendEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 
 import java.util.HashSet;
 import java.util.Iterator;
@@ -79,14 +80,13 @@ public class TabCompleteListener implements Listener {
         Command cmd = Bukkit.getCommandMap().getCommand(raw);
         if (cmd == null) cmd = Bukkit.getCommandMap().getCommand(base);
 
-        // Si el jugador no tiene permiso para el comando base, cancelamos todas las sugerencias de argumentos
         if (!hasPermission(player, cmd, raw, base)) {
             event.setCancelled(true);
         }
     }
 
     @EventHandler
-    public void onCommandPreProcess(org.bukkit.event.player.PlayerCommandPreprocessEvent event) {
+    public void onCommandPreProcess(PlayerCommandPreprocessEvent event) {
         if (!plugin.getConfig().getBoolean("Tab_Hide.enable", true)) return;
         
         Player player = event.getPlayer();
@@ -119,19 +119,20 @@ public class TabCompleteListener implements Listener {
                 return player.hasPermission(perm);
             }
             
-            // Si no tiene permiso oficial, buscamos por plugin
+            // Error 2 corregido: velotab.admin ya no es bypass universal
             if (cmd instanceof PluginCommand) {
                 String pluginName = ((PluginCommand) cmd).getPlugin().getName().toLowerCase();
-                return player.hasPermission(pluginName + "." + base) || player.hasPermission("velotab.admin");
+                return player.hasPermission(pluginName + "." + base);
             }
         }
         
         // Comandos con prefijo sin dueño claro
         if (raw.contains(":")) {
-            return player.hasPermission(raw.replace(":", ".")) || player.hasPermission("velotab.admin");
+            return player.hasPermission(raw.replace(":", "."));
         }
         
-        return true; // Por defecto permitimos si no hay forma de identificarlo (evita falsos positivos)
+        // Error 1 corregido: Fail-Close (Ocultar por defecto)
+        return false; 
     }
 
     private Set<String> getSet(String path) {

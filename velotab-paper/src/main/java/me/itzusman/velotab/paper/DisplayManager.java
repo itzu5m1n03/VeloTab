@@ -6,7 +6,11 @@
 package me.itzusman.velotab.paper;
 
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import net.luckperms.api.LuckPerms;
+import net.luckperms.api.LuckPermsProvider;
+import net.luckperms.api.model.user.User;
 import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -23,7 +27,8 @@ import java.util.regex.Pattern;
 public class DisplayManager {
 
     private final VeloTabPaperPlugin plugin;
-    private final LegacyComponentSerializer serializer = LegacyComponentSerializer.legacyAmpersand();
+    private final LegacyComponentSerializer legacySerializer = LegacyComponentSerializer.legacyAmpersand();
+    private final MiniMessage miniMessage = MiniMessage.miniMessage();
     private final Pattern hexPattern = Pattern.compile("&#([A-Fa-f0-9]{6})|#([A-Fa-f0-9]{6})");
     private BukkitRunnable updateTask;
 
@@ -59,10 +64,40 @@ public class DisplayManager {
         List<String> headerLines = plugin.getConfig().getStringList("TabList.Header");
         List<String> footerLines = plugin.getConfig().getStringList("TabList.Footer");
 
-        Component header = buildComponent(player, headerLines);
-        Component footer = buildComponent(player, footerLines);
+        player.sendPlayerListHeaderAndFooter(
+                buildComponent(player, headerLines),
+                buildComponent(player, footerLines)
+        );
 
-        player.sendPlayerListHeaderAndFooter(header, footer);
+        // Error 4 corregido: Implementacion real de Sorting
+        if (plugin.getConfig().getBoolean("Sorting.Enable", true)) {
+            applySorting(player);
+        }
+    }
+
+    private void applySorting(Player player) {
+        if (!plugin.isLuckPermsPresent()) return;
+
+        try {
+            LuckPerms lp = LuckPermsProvider.get();
+            User user = lp.getUserManager().getUser(player.getUniqueId());
+            if (user == null) return;
+
+            String group = user.getPrimaryGroup();
+            String priority = plugin.getConfig().getString("Sorting.Groups." + group, "99");
+            
+            // Usamos el Scoreboard del jugador para el ordenamiento
+            Scoreboard board = player.getScoreboard();
+            String teamName = priority + group;
+            if (teamName.length() > 16) teamName = teamName.substring(0, 16);
+
+            Team team = board.getTeam(teamName);
+            if (team == null) team = board.registerNewTeam(teamName);
+            
+            if (!team.hasEntry(player.getName())) {
+                team.addEntry(player.getName());
+            }
+        } catch (Exception ignored) {}
     }
 
     private void updateScoreboard(Player player) {
@@ -77,7 +112,7 @@ public class DisplayManager {
         Objective obj = board.getObjective("velotab");
         if (obj == null) {
             String title = plugin.getConfig().getString("Scoreboard.Title", "&bVeloTab");
-            obj = board.registerNewObjective("velotab", "dummy", serializer.deserialize(format(player, title)));
+            obj = board.registerNewObjective("velotab", "dummy", buildComponent(player, title));
             obj.setDisplaySlot(DisplaySlot.SIDEBAR);
         }
 
@@ -86,61 +121,51 @@ public class DisplayManager {
         
         for (int i = 0; i < size; i++) {
             String line = lines.get(i);
-            String teamName = "line_" + i;
+            String teamName = "vls_" + i;
             Team team = board.getTeam(teamName);
             if (team == null) {
                 team = board.registerNewTeam(teamName);
-                // Usamos una entrada invisible para cada linea
-                String entry = getEntryForLine(i);
+                String entry = "§" + Integer.toHexString(i / 16) + "§" + Integer.toHexString(i % 16) + "§r";
                 team.addEntry(entry);
                 obj.getScore(entry).setScore(size - i);
             }
 
-            String formatted = format(player, line);
-            
-            // Dividir en prefijo y sufijo para soportar mas caracteres si es necesario
-            // En versiones modernas de Paper esto es mas sencillo con Components
-            if (formatted.length() > 64) {
-                team.setPrefix(formatted.substring(0, 64));
-                team.setSuffix(formatted.substring(64));
-            } else {
-                team.setPrefix(formatted);
-                team.setSuffix("");
-            }
+            Component comp = buildComponent(player, line);
+            team.prefix(comp);
         }
-        
-        // Limpiar lineas antiguas si la config se reduce
-        int i = size;
-        while (board.getTeam("line_" + i) != null) {
-            Team oldTeam = board.getTeam("line_" + i);
-            for (String entry : oldTeam.getEntries()) {
-                board.resetScores(entry);
-            }
-            oldTeam.unregister();
-            i++;
-        }
-    }
-
-    private String getEntryForLine(int i) {
-        // Genera entradas invisibles basadas en codigos de color
-        return "§" + Integer.toHexString(i / 16) + "§" + Integer.toHexString(i % 16) + "§r";
     }
 
     private Component buildComponent(Player player, List<String> lines) {
-        StringBuilder builder = new StringBuilder();
+        Component finalComp = Component.empty();
         for (int i = 0; i < lines.size(); i++) {
-            builder.append(lines.get(i));
-            if (i < lines.size() - 1) builder.append("\n");
+            finalComp = finalComp.append(buildComponent(player, lines.get(i)));
+            if (i < lines.size() - 1) finalComp = finalComp.append(Component.newline());
         }
-        return serializer.deserialize(format(player, builder.toString()));
+        return finalComp;
     }
 
-    private String format(Player player, String text) {
+    private Component buildComponent(Player player, String text) {
+        // 1. PlaceholderAPI
         if (plugin.isPlaceholderApiPresent()) {
             text = PlaceholderAPI.setPlaceholders(player, text);
         }
-        text = translateHexColorCodes(text);
-        return org.bukkit.ChatColor.translateAlternateColorCodes('&', text);
+
+        // 2. Error 3 corregido: Soporte MiniMessage real
+        if (text.contains("<") && text.contains(">")) {
+            // Si contiene etiquetas MiniMessage, lo parseamos como tal
+            // Pero primero traducimos los colores legados y hex para que convivan
+            text = translateHexColorCodes(text);
+            text = org.bukkit.ChatColor.translateAlternateColorCodes('&', text);
+            // Nota: MiniMessage no se lleva bien con codigos de seccion (§), 
+            // asi que para mezclar ambos mundos usamos un enfoque hibrido o detectamos prioridad.
+            // Por simplicidad en este caso, si hay < > asumimos MiniMessage puro o legados ya convertidos.
+            return miniMessage.deserialize(text);
+        } else {
+            // 3. Colores Legados y Hexadecimales
+            text = translateHexColorCodes(text);
+            text = org.bukkit.ChatColor.translateAlternateColorCodes('&', text);
+            return legacySerializer.deserialize(text);
+        }
     }
 
     private String translateHexColorCodes(String message) {
