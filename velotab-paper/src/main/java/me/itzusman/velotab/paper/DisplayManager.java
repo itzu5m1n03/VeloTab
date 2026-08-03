@@ -69,7 +69,6 @@ public class DisplayManager {
                 buildComponent(player, footerLines)
         );
 
-        // Error 4 Corregido: Sorting Global
         if (plugin.getConfig().getBoolean("Sorting.Enable", true)) {
             applyGlobalSorting(player);
         }
@@ -91,7 +90,6 @@ public class DisplayManager {
                 String group = (user != null) ? user.getPrimaryGroup() : "default";
                 String priority = plugin.getConfig().getString("Sorting.Groups." + group, "99");
                 
-                // Nombre del equipo basado en prioridad para forzar el orden alfabetico
                 String teamName = "vt_" + priority + group;
                 if (teamName.length() > 16) teamName = teamName.substring(0, 16);
 
@@ -99,7 +97,6 @@ public class DisplayManager {
                 if (team == null) team = board.registerNewTeam(teamName);
                 
                 if (!team.hasEntry(target.getName())) {
-                    // Limpiar al jugador de otros equipos de sorting para evitar duplicados
                     for (Team oldTeam : board.getTeams()) {
                         if (oldTeam.getName().startsWith("vt_") && oldTeam.hasEntry(target.getName())) {
                             oldTeam.removeEntry(target.getName());
@@ -159,21 +156,17 @@ public class DisplayManager {
             text = PlaceholderAPI.setPlaceholders(player, text);
         }
 
-        // Error 3 Corregido: Motor Hibrido (Evita § en MiniMessage)
         if (text.contains("<") && text.contains(">")) {
-            // Si hay MiniMessage, convertimos los & legados a etiquetas de MiniMessage primero
-            // para evitar que el simbolo § rompa el deserializador.
             String mmText = legacyToMiniMessage(text);
             return miniMessage.deserialize(mmText);
         } else {
-            // Si es legacy puro, usamos el serializer tradicional
-            text = translateHexColorCodes(text);
+            // Corregido: Usar '&' para que coincida con legacySerializer (legacyAmpersand)
+            text = translateHexToAmpersand(text);
             return legacySerializer.deserialize(text);
         }
     }
 
     private String legacyToMiniMessage(String text) {
-        // Traduccion basica de & a etiquetas MiniMessage para evitar §
         return text.replace("&0", "<black>")
                    .replace("&1", "<dark_blue>")
                    .replace("&2", "<dark_green>")
@@ -197,12 +190,13 @@ public class DisplayManager {
                    .replace("&r", "<reset>");
     }
 
-    private String translateHexColorCodes(String message) {
+    private String translateHexToAmpersand(String message) {
         Matcher matcher = hexPattern.matcher(message);
         StringBuilder buffer = new StringBuilder(message.length() + 4 * 8);
         while (matcher.find()) {
             String group = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
-            matcher.appendReplacement(buffer, "§x§" + group.charAt(0) + "§" + group.charAt(1) + "§" + group.charAt(2) + "§" + group.charAt(3) + "§" + group.charAt(4) + "§" + group.charAt(5));
+            // Corregido: Usar '&' en lugar de '§' para ser compatible con legacyAmpersand()
+            matcher.appendReplacement(buffer, "&x&" + group.charAt(0) + "&" + group.charAt(1) + "&" + group.charAt(2) + "&" + group.charAt(3) + "&" + group.charAt(4) + "&" + group.charAt(5));
         }
         return matcher.appendTail(buffer).toString();
     }

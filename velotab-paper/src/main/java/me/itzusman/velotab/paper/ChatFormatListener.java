@@ -59,7 +59,6 @@ public class ChatFormatListener implements Listener {
             } catch (Exception ignored) {}
         }
 
-        // Reemplazo de placeholders base
         String baseFormat = format
                 .replace("%luckperms_prefix%", prefixLP)
                 .replace("%luckperms_suffix%", suffixLP);
@@ -68,13 +67,11 @@ public class ChatFormatListener implements Listener {
             baseFormat = PlaceholderAPI.setPlaceholders(player, baseFormat);
         }
 
-        // Dividimos el formato en 3 partes: Antes del nombre, Nombre, Despues del nombre (incluyendo mensaje)
         String[] parts = baseFormat.split("\\{player\\}", 2);
-        if (parts.length < 2) return; // Formato invalido
+        if (parts.length < 2) return;
 
         final Component prefixComp = formatComponent(player, parts[0]);
         
-        // El nombre del jugador con Hover
         Component nameComp = Component.text(player.getName());
         String hoverText = plugin.getConfig().getString("Chat_Format.Player_Hover", "");
         if (!hoverText.isEmpty()) {
@@ -82,7 +79,6 @@ public class ChatFormatListener implements Listener {
         }
         final Component playerNameComp = nameComp;
 
-        // El resto del formato que contiene {message}
         String afterPlayer = parts[1];
         String[] messageParts = afterPlayer.split("\\{message\\}", 2);
         
@@ -102,8 +98,9 @@ public class ChatFormatListener implements Listener {
         if (text.contains("<") && text.contains(">")) {
             return miniMessage.deserialize(legacyToMiniMessage(text));
         } else {
-            text = translateHexColorCodes(text);
-            return legacySerializer.deserialize(org.bukkit.ChatColor.translateAlternateColorCodes('&', text));
+            // Corregido: Usar '&' para que coincida con legacySerializer (legacyAmpersand)
+            text = translateHexToAmpersand(text);
+            return legacySerializer.deserialize(text);
         }
     }
 
@@ -115,6 +112,17 @@ public class ChatFormatListener implements Listener {
                    .replace("&c", "<red>").replace("&d", "<light_purple>").replace("&e", "<yellow>")
                    .replace("&f", "<white>").replace("&l", "<bold>").replace("&m", "<strikethrough>")
                    .replace("&n", "<underlined>").replace("&o", "<italic>").replace("&r", "<reset>");
+    }
+
+    private String translateHexToAmpersand(String message) {
+        Matcher matcher = hexPattern.matcher(message);
+        StringBuilder buffer = new StringBuilder(message.length() + 4 * 8);
+        while (matcher.find()) {
+            String group = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
+            // Corregido: Usar '&' en lugar de '§' para ser compatible con legacyAmpersand()
+            matcher.appendReplacement(buffer, "&x&" + group.charAt(0) + "&" + group.charAt(1) + "&" + group.charAt(2) + "&" + group.charAt(3) + "&" + group.charAt(4) + "&" + group.charAt(5));
+        }
+        return matcher.appendTail(buffer).toString();
     }
 
     private String resolveFormat(Player player) {
@@ -132,15 +140,5 @@ public class ChatFormatListener implements Listener {
             } catch (Exception ignored) {}
         }
         return plugin.getConfig().getString("Chat_Format.Default_Format", "&8[%luckperms_prefix%&8] &7{player} &8» &7{message}");
-    }
-
-    private String translateHexColorCodes(String message) {
-        Matcher matcher = hexPattern.matcher(message);
-        StringBuilder buffer = new StringBuilder(message.length() + 4 * 8);
-        while (matcher.find()) {
-            String group = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
-            matcher.appendReplacement(buffer, "§x§" + group.charAt(0) + "§" + group.charAt(1) + "§" + group.charAt(2) + "§" + group.charAt(3) + "§" + group.charAt(4) + "§" + group.charAt(5));
-        }
-        return matcher.appendTail(buffer).toString();
     }
 }
