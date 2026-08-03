@@ -69,33 +69,44 @@ public class DisplayManager {
                 buildComponent(player, footerLines)
         );
 
-        // Error 4 corregido: Implementacion real de Sorting
+        // Error 4 Corregido: Sorting Global
         if (plugin.getConfig().getBoolean("Sorting.Enable", true)) {
-            applySorting(player);
+            applyGlobalSorting(player);
         }
     }
 
-    private void applySorting(Player player) {
+    private void applyGlobalSorting(Player viewer) {
         if (!plugin.isLuckPermsPresent()) return;
+
+        Scoreboard board = viewer.getScoreboard();
+        if (board == Bukkit.getScoreboardManager().getMainScoreboard()) {
+            board = Bukkit.getScoreboardManager().getNewScoreboard();
+            viewer.setScoreboard(board);
+        }
 
         try {
             LuckPerms lp = LuckPermsProvider.get();
-            User user = lp.getUserManager().getUser(player.getUniqueId());
-            if (user == null) return;
+            for (Player target : Bukkit.getOnlinePlayers()) {
+                User user = lp.getUserManager().getUser(target.getUniqueId());
+                String group = (user != null) ? user.getPrimaryGroup() : "default";
+                String priority = plugin.getConfig().getString("Sorting.Groups." + group, "99");
+                
+                // Nombre del equipo basado en prioridad para forzar el orden alfabetico
+                String teamName = "vt_" + priority + group;
+                if (teamName.length() > 16) teamName = teamName.substring(0, 16);
 
-            String group = user.getPrimaryGroup();
-            String priority = plugin.getConfig().getString("Sorting.Groups." + group, "99");
-            
-            // Usamos el Scoreboard del jugador para el ordenamiento
-            Scoreboard board = player.getScoreboard();
-            String teamName = priority + group;
-            if (teamName.length() > 16) teamName = teamName.substring(0, 16);
-
-            Team team = board.getTeam(teamName);
-            if (team == null) team = board.registerNewTeam(teamName);
-            
-            if (!team.hasEntry(player.getName())) {
-                team.addEntry(player.getName());
+                Team team = board.getTeam(teamName);
+                if (team == null) team = board.registerNewTeam(teamName);
+                
+                if (!team.hasEntry(target.getName())) {
+                    // Limpiar al jugador de otros equipos de sorting para evitar duplicados
+                    for (Team oldTeam : board.getTeams()) {
+                        if (oldTeam.getName().startsWith("vt_") && oldTeam.hasEntry(target.getName())) {
+                            oldTeam.removeEntry(target.getName());
+                        }
+                    }
+                    team.addEntry(target.getName());
+                }
             }
         } catch (Exception ignored) {}
     }
@@ -109,10 +120,10 @@ public class DisplayManager {
             player.setScoreboard(board);
         }
 
-        Objective obj = board.getObjective("velotab");
+        Objective obj = board.getObjective("velotab_sb");
         if (obj == null) {
             String title = plugin.getConfig().getString("Scoreboard.Title", "&bVeloTab");
-            obj = board.registerNewObjective("velotab", "dummy", buildComponent(player, title));
+            obj = board.registerNewObjective("velotab_sb", "dummy", buildComponent(player, title));
             obj.setDisplaySlot(DisplaySlot.SIDEBAR);
         }
 
@@ -121,7 +132,7 @@ public class DisplayManager {
         
         for (int i = 0; i < size; i++) {
             String line = lines.get(i);
-            String teamName = "vls_" + i;
+            String teamName = "sb_line_" + i;
             Team team = board.getTeam(teamName);
             if (team == null) {
                 team = board.registerNewTeam(teamName);
@@ -130,8 +141,7 @@ public class DisplayManager {
                 obj.getScore(entry).setScore(size - i);
             }
 
-            Component comp = buildComponent(player, line);
-            team.prefix(comp);
+            team.prefix(buildComponent(player, line));
         }
     }
 
@@ -145,27 +155,46 @@ public class DisplayManager {
     }
 
     private Component buildComponent(Player player, String text) {
-        // 1. PlaceholderAPI
         if (plugin.isPlaceholderApiPresent()) {
             text = PlaceholderAPI.setPlaceholders(player, text);
         }
 
-        // 2. Error 3 corregido: Soporte MiniMessage real
+        // Error 3 Corregido: Motor Hibrido (Evita § en MiniMessage)
         if (text.contains("<") && text.contains(">")) {
-            // Si contiene etiquetas MiniMessage, lo parseamos como tal
-            // Pero primero traducimos los colores legados y hex para que convivan
-            text = translateHexColorCodes(text);
-            text = org.bukkit.ChatColor.translateAlternateColorCodes('&', text);
-            // Nota: MiniMessage no se lleva bien con codigos de seccion (§), 
-            // asi que para mezclar ambos mundos usamos un enfoque hibrido o detectamos prioridad.
-            // Por simplicidad en este caso, si hay < > asumimos MiniMessage puro o legados ya convertidos.
-            return miniMessage.deserialize(text);
+            // Si hay MiniMessage, convertimos los & legados a etiquetas de MiniMessage primero
+            // para evitar que el simbolo § rompa el deserializador.
+            String mmText = legacyToMiniMessage(text);
+            return miniMessage.deserialize(mmText);
         } else {
-            // 3. Colores Legados y Hexadecimales
+            // Si es legacy puro, usamos el serializer tradicional
             text = translateHexColorCodes(text);
-            text = org.bukkit.ChatColor.translateAlternateColorCodes('&', text);
             return legacySerializer.deserialize(text);
         }
+    }
+
+    private String legacyToMiniMessage(String text) {
+        // Traduccion basica de & a etiquetas MiniMessage para evitar §
+        return text.replace("&0", "<black>")
+                   .replace("&1", "<dark_blue>")
+                   .replace("&2", "<dark_green>")
+                   .replace("&3", "<dark_aqua>")
+                   .replace("&4", "<dark_red>")
+                   .replace("&5", "<dark_purple>")
+                   .replace("&6", "<gold>")
+                   .replace("&7", "<gray>")
+                   .replace("&8", "<dark_gray>")
+                   .replace("&9", "<blue>")
+                   .replace("&a", "<green>")
+                   .replace("&b", "<aqua>")
+                   .replace("&c", "<red>")
+                   .replace("&d", "<light_purple>")
+                   .replace("&e", "<yellow>")
+                   .replace("&f", "<white>")
+                   .replace("&l", "<bold>")
+                   .replace("&m", "<strikethrough>")
+                   .replace("&n", "<underlined>")
+                   .replace("&o", "<italic>")
+                   .replace("&r", "<reset>");
     }
 
     private String translateHexColorCodes(String message) {
