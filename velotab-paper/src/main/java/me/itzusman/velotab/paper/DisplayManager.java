@@ -82,12 +82,48 @@ public class DisplayManager {
         }
 
         List<String> lines = plugin.getConfig().getStringList("Scoreboard.Lines");
-        int score = lines.size();
-        for (String line : lines) {
+        int size = lines.size();
+        
+        for (int i = 0; i < size; i++) {
+            String line = lines.get(i);
+            String teamName = "line_" + i;
+            Team team = board.getTeam(teamName);
+            if (team == null) {
+                team = board.registerNewTeam(teamName);
+                // Usamos una entrada invisible para cada linea
+                String entry = getEntryForLine(i);
+                team.addEntry(entry);
+                obj.getScore(entry).setScore(size - i);
+            }
+
             String formatted = format(player, line);
-            if (formatted.length() > 40) formatted = formatted.substring(0, 40);
-            obj.getScore(formatted).setScore(score--);
+            
+            // Dividir en prefijo y sufijo para soportar mas caracteres si es necesario
+            // En versiones modernas de Paper esto es mas sencillo con Components
+            if (formatted.length() > 64) {
+                team.setPrefix(formatted.substring(0, 64));
+                team.setSuffix(formatted.substring(64));
+            } else {
+                team.setPrefix(formatted);
+                team.setSuffix("");
+            }
         }
+        
+        // Limpiar lineas antiguas si la config se reduce
+        int i = size;
+        while (board.getTeam("line_" + i) != null) {
+            Team oldTeam = board.getTeam("line_" + i);
+            for (String entry : oldTeam.getEntries()) {
+                board.resetScores(entry);
+            }
+            oldTeam.unregister();
+            i++;
+        }
+    }
+
+    private String getEntryForLine(int i) {
+        // Genera entradas invisibles basadas en codigos de color
+        return "§" + Integer.toHexString(i / 16) + "§" + Integer.toHexString(i % 16) + "§r";
     }
 
     private Component buildComponent(Player player, List<String> lines) {
