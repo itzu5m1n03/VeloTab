@@ -6,8 +6,11 @@
 # Idioma del plugin (es / en)
 language: es
 
+# --- ACTUALIZACIONES ---
 # Comprobar actualizaciones automaticamente
 update_checker: true
+# Descargar automaticamente la nueva version (requiere reinicio para aplicar)
+auto_update: false
 
 # --- SINCRONIZACION DE RED ---
 network_sync:

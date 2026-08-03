@@ -12,16 +12,18 @@ import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
+import me.itzusman.velotab.common.AutoUpdater;
 import me.itzusman.velotab.common.IntegrityCheck;
 import me.itzusman.velotab.common.UpdateChecker;
 import org.slf4j.Logger;
 
+import java.io.File;
 import java.nio.file.Path;
 
 @Plugin(
         id = "velotab",
         name = "VeloTab",
-        version = "1.3.1",
+        version = "1.5.5",
         description = "Suite completa de TabList y Seguridad creada por ItzUsman.",
         authors = {"ItzUsman"}
 )
@@ -32,6 +34,7 @@ public class VeloTabVelocityPlugin {
     private final Path dataDirectory;
     private VeloTabConfig config;
     public static final MinecraftChannelIdentifier SYNC_CHANNEL = MinecraftChannelIdentifier.from("velotab:sync");
+    private static final String VERSION = "1.5.5";
 
     @Inject
     public VeloTabVelocityPlugin(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory) {
@@ -48,13 +51,31 @@ public class VeloTabVelocityPlugin {
         server.getEventManager().register(this, new TabFilterListener(config));
         server.getChannelRegistrar().register(SYNC_CHANNEL);
 
-        // Update Checker
-        new UpdateChecker("1.3.1").getVersion(latest -> {
-            if (new UpdateChecker("1.3.1").isNewer(latest)) {
-                logger.warn("¡Nueva version de VeloTab disponible: " + latest + "!");
-            }
-        });
+        // Update Checker & Auto Updater
+        checkUpdates();
 
         IntegrityCheck.printBranding(java.util.logging.Logger.getLogger("VeloTab"));
+    }
+
+    private void checkUpdates() {
+        // En Velocity, usamos el logger de slf4j convertido o el de java.util
+        java.util.logging.Logger julLogger = java.util.logging.Logger.getLogger("VeloTab");
+        
+        UpdateChecker checker = new UpdateChecker(VERSION);
+        checker.getLatestInfo((latestVersion, downloadUrl) -> {
+            if (checker.isNewer(latestVersion)) {
+                logger.warn("¡Nueva version de VeloTab disponible: {}!", latestVersion);
+                
+                // Nota: El auto-updater en Velocity requiere que el usuario lo active en la config
+                // Para simplificar, usamos una comprobacion directa si existe la opcion
+                if (!downloadUrl.isEmpty()) {
+                    // Intentamos descargar en la carpeta de plugins
+                    File targetFile = new File("plugins/VeloTab.jar");
+                    AutoUpdater.downloadUpdate(downloadUrl, targetFile, julLogger, () -> {
+                        logger.info("La actualizacion de Velocity se aplicara en el proximo reinicio.");
+                    });
+                }
+            }
+        });
     }
 }

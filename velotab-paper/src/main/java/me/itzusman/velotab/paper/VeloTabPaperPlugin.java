@@ -5,6 +5,7 @@
  */
 package me.itzusman.velotab.paper;
 
+import me.itzusman.velotab.common.AutoUpdater;
 import me.itzusman.velotab.common.IntegrityCheck;
 import me.itzusman.velotab.common.UpdateChecker;
 import org.bukkit.Bukkit;
@@ -39,7 +40,6 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
         placeholderApiPresent = Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null;
         luckPermsPresent = Bukkit.getPluginManager().getPlugin("LuckPerms") != null;
 
-        // Error 5 corregido: Verificar expansiones de PAPI
         if (placeholderApiPresent) {
             checkPapiExpansions();
         }
@@ -54,13 +54,8 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
             getServer().getMessenger().registerOutgoingPluginChannel(this, "velotab:sync");
         }
 
-        if (getConfig().getBoolean("update_checker", true)) {
-            new UpdateChecker(getDescription().getVersion()).getVersion(latest -> {
-                if (new UpdateChecker(getDescription().getVersion()).isNewer(latest)) {
-                    getLogger().warning("¡Nueva version disponible: " + latest + "! Descargala en GitHub.");
-                }
-            });
-        }
+        // Sistema de Actualizacion Automatica
+        checkUpdates();
 
         VeloTabCommand cmd = new VeloTabCommand(this);
         if (getCommand("velotab") != null) {
@@ -69,6 +64,40 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
         }
 
         IntegrityCheck.printBranding(getLogger());
+    }
+
+    private void checkUpdates() {
+        boolean checkEnabled = getConfig().getBoolean("update_checker", true);
+        boolean autoUpdate = getConfig().getBoolean("auto_update", false);
+
+        if (checkEnabled) {
+            UpdateChecker checker = new UpdateChecker(getDescription().getVersion());
+            checker.getLatestInfo((latestVersion, downloadUrl) -> {
+                if (checker.isNewer(latestVersion)) {
+                    getLogger().warning("¡Nueva version disponible: " + latestVersion + "!");
+                    
+                    if (autoUpdate && !downloadUrl.isEmpty()) {
+                        // Usar la carpeta 'update' de Bukkit para un reemplazo limpio al reiniciar
+                        File updateDir = new File(getDataFolder().getParentFile(), "update");
+                        if (!updateDir.exists()) updateDir.mkdirs();
+                        
+                        File targetFile = new File(updateDir, "VeloTab.jar");
+                        AutoUpdater.downloadUpdate(downloadUrl, targetFile, getLogger(), () -> {
+                            // Opcional: Avisar a OPs online
+                            Bukkit.getScheduler().runTask(this, () -> {
+                                for (Player p : Bukkit.getOnlinePlayers()) {
+                                    if (p.isOp()) {
+                                        p.sendMessage(ChatColor.GREEN + "[VeloTab] Se ha descargado una nueva version (" + latestVersion + "). Reinicia el servidor para aplicarla.");
+                                    }
+                                }
+                            });
+                        });
+                    } else {
+                        getLogger().info("Descarga la nueva version en: https://github.com/itzu5m1n03/VeloTab/releases");
+                    }
+                }
+            });
+        }
     }
 
     private void checkPapiExpansions() {
