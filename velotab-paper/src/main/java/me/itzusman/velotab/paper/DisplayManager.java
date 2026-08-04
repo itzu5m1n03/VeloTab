@@ -6,7 +6,6 @@
 package me.itzusman.velotab.paper;
 
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
@@ -28,15 +27,12 @@ public class DisplayManager {
 
     private final VeloTabPaperPlugin plugin;
 
-    // Serializador Legacy para codigos & y Hex nativo de Adventure
+    // Serializador Legacy robusto para codigos & y Hex
     private final LegacyComponentSerializer legacySerializer = LegacyComponentSerializer.builder()
             .character('&')
             .hexColors()
             .useUnusualXRepeatedCharacterHexFormat()
             .build();
-
-    // MiniMessage para tags avanzados
-    private final MiniMessage miniMessage = MiniMessage.miniMessage();
 
     // Patron para detectar colores hexadecimales (&#RRGGBB o #RRGGBB)
     private final Pattern hexPattern = Pattern.compile("&#([A-Fa-f0-9]{6})|#([A-Fa-f0-9]{6})");
@@ -101,26 +97,28 @@ public class DisplayManager {
         boolean layeringEnabled = plugin.getConfig().getBoolean("TabList.Name_Layering.Enable", true);
 
         for (Player target : Bukkit.getOnlinePlayers()) {
-            // Sorting
+            // Sorting Team
             String sortingTeamName = buildSortingTeamName(lp, target);
-            Team sortTeam = board.getTeam(sortingTeamName);
-            if (sortTeam == null) {
-                sortTeam = board.registerNewTeam(sortingTeamName);
+            Team team = board.getTeam(sortingTeamName);
+            if (team == null) {
+                team = board.registerNewTeam(sortingTeamName);
             }
 
-            if (!sortTeam.hasEntry(target.getName())) {
+            if (!team.hasEntry(target.getName())) {
                 for (Team t : board.getTeams()) {
                     if (t.getName().startsWith(SORTING_TEAM_PREFIX) && t.hasEntry(target.getName())) {
                         t.removeEntry(target.getName());
                     }
                 }
-                sortTeam.addEntry(target.getName());
+                team.addEntry(target.getName());
             }
 
             // Name Layering (TabList Display Name)
             if (layeringEnabled) {
-                updatePlayerTabName(target);
+                updatePlayerTabName(target, team);
             } else {
+                team.prefix(Component.empty());
+                team.suffix(Component.empty());
                 target.playerListName(null);
             }
         }
@@ -141,7 +139,7 @@ public class DisplayManager {
         return teamName;
     }
 
-    private void updatePlayerTabName(Player target) {
+    private void updatePlayerTabName(Player target, Team team) {
         String upRaw = plugin.getConfig().getString("TabList.Name_Layering.UpName", "");
         String centerRaw = plugin.getConfig().getString("TabList.Name_Layering.CenterName", "{player}");
         String downRaw = plugin.getConfig().getString("TabList.Name_Layering.DownName", "");
@@ -152,16 +150,24 @@ public class DisplayManager {
         Component centerComp = buildComponent(target, centerProcessed);
         Component downComp = !downRaw.isEmpty() ? buildComponent(target, downRaw) : null;
 
-        Component finalName = Component.empty();
+        // Metodo TAB: Usar Team Prefix/Suffix para las lineas extra
+        // prefix = UpName + \n
+        // entry = CenterName (via playerListName)
+        // suffix = \n + DownName
+        
         if (upComp != null) {
-            finalName = finalName.append(upComp).append(Component.newline());
-        }
-        finalName = finalName.append(centerComp);
-        if (downComp != null) {
-            finalName = finalName.append(Component.newline()).append(downComp);
+            team.prefix(upComp.append(Component.newline()));
+        } else {
+            team.prefix(Component.empty());
         }
 
-        target.playerListName(finalName);
+        if (downComp != null) {
+            team.suffix(Component.newline().append(downComp));
+        } else {
+            team.suffix(Component.empty());
+        }
+
+        target.playerListName(centerComp);
     }
 
     private void updateScoreboard(Player player) {
@@ -217,50 +223,14 @@ public class DisplayManager {
             text = PlaceholderAPI.setPlaceholders(player, text);
         }
 
-        // 2. Si tiene tags de MiniMessage (<...>), usamos MiniMessage directamente.
-        // MiniMessage es capaz de manejar gradientes y tags avanzados.
-        if (text.contains("<") && text.contains(">")) {
-            // Convertimos los & legacy a tags de MiniMessage para que sea hibrido.
-            String mmText = legacyToMiniMessage(text);
-            try {
-                return miniMessage.deserialize(mmText);
-            } catch (Exception e) {
-                // Fallback a legacy si MiniMessage falla (por tags mal escritos como <gradient::>)
-            }
-        }
-
-        // 3. Soporte Legacy + Hex
-        // Traducimos &#RRGGBB y #RRGGBB al formato &x&R&R&G&G&B&B
-        String legacyText = translateHexToLegacy(text);
-        return legacySerializer.deserialize(legacyText);
-    }
-
-    private String legacyToMiniMessage(String text) {
-        // Convertir codigos legacy & a tags MiniMessage
-        // Y convertir hex #RRGGBB a <color:#RRGGBB>
-        String result = text;
+        // 2. Motor Legacy + Hex puro
+        // Traducimos &#RRGGBB y #RRGGBB al formato &x&R&R&G&G&B&B que Adventure entiende nativamente
+        String coloredText = translateHexToLegacy(text);
         
-        Matcher matcher = hexPattern.matcher(result);
-        StringBuilder sb = new StringBuilder();
-        while (matcher.find()) {
-            String hex = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
-            matcher.appendReplacement(sb, "<color:#" + hex + ">");
-        }
-        matcher.appendTail(sb);
-        result = sb.toString();
+        // 3. Eliminar cualquier rastro de tags MiniMessage si el usuario los puso por error
+        coloredText = coloredText.replaceAll("<[^>]*>", "");
 
-        return result
-                .replace("&0", "<black>").replace("&1", "<dark_blue>").replace("&2", "<dark_green>")
-                .replace("&3", "<dark_aqua>").replace("&4", "<dark_red>").replace("&5", "<dark_purple>")
-                .replace("&6", "<gold>").replace("&7", "<gray>").replace("&8", "<dark_gray>")
-                .replace("&9", "<blue>").replace("&a", "<green>").replace("&b", "<aqua>")
-                .replace("&c", "<red>").replace("&d", "<light_purple>").replace("&e", "<yellow>")
-                .replace("&f", "<white>").replace("&l", "<bold>").replace("&m", "<strikethrough>")
-                .replace("&n", "<underlined>").replace("&o", "<italic>").replace("&r", "<reset>")
-                .replace("&A", "<green>").replace("&B", "<aqua>").replace("&C", "<red>")
-                .replace("&D", "<light_purple>").replace("&E", "<yellow>").replace("&F", "<white>")
-                .replace("&L", "<bold>").replace("&M", "<strikethrough>").replace("&N", "<underlined>")
-                .replace("&O", "<italic>").replace("&R", "<reset>");
+        return legacySerializer.deserialize(coloredText);
     }
 
     private String translateHexToLegacy(String message) {
@@ -268,6 +238,7 @@ public class DisplayManager {
         StringBuilder buffer = new StringBuilder(message.length() + 4 * 8);
         while (matcher.find()) {
             String group = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
+            // Formato estandar de Bungee/Spigot para Hex: &x&r&r&g&g&b&b
             matcher.appendReplacement(buffer, "&x&" + group.charAt(0) + "&" + group.charAt(1)
                     + "&" + group.charAt(2) + "&" + group.charAt(3)
                     + "&" + group.charAt(4) + "&" + group.charAt(5));

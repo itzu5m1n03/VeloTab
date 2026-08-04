@@ -1,5 +1,5 @@
 name: VeloTab
-version: '1.6.4'
+version: '1.6.5'
 main: me.itzusman.velotab.paper.VeloTabPaperPlugin
 api-version: '1.20'
 author: ItzUsman

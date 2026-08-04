@@ -7,7 +7,7 @@
     <parent>
         <groupId>me.itzusman</groupId>
         <artifactId>VeloTab-Parent</artifactId>
-        <version>1.6.4</version>
+        <version>1.6.5</version>
     </parent>
 
     <artifactId>VeloTab-Common</artifactId>
