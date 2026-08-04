@@ -28,11 +28,11 @@ public class DisplayManager {
 
     private final VeloTabPaperPlugin plugin;
 
-    // Serializador Legacy configurado para soportar Hex y codigos &
+    // Serializador Legacy para codigos & y Hex
     private final LegacyComponentSerializer legacySerializer = LegacyComponentSerializer.builder()
             .character('&')
             .hexColors()
-            .useUnusualXRepeatedCharacterHexFormat() // Soporta &x&r&r&g&g&b&b
+            .useUnusualXRepeatedCharacterHexFormat()
             .build();
 
     // MiniMessage para tags avanzados
@@ -42,7 +42,7 @@ public class DisplayManager {
     private final Pattern hexPattern = Pattern.compile("&#([A-Fa-f0-9]{6})|(?<![#A-Fa-f0-9])#([A-Fa-f0-9]{6})");
 
     private BukkitRunnable updateTask;
-    private static final String NAMETAG_TEAM_PREFIX = "vt_nl_";
+    private static final String SORTING_TEAM_PREFIX = "vt_s_";
 
     public DisplayManager(VeloTabPaperPlugin plugin) {
         this.plugin = plugin;
@@ -101,6 +101,7 @@ public class DisplayManager {
         boolean layeringEnabled = plugin.getConfig().getBoolean("TabList.Name_Layering.Enable", true);
 
         for (Player target : Bukkit.getOnlinePlayers()) {
+            // 1. Manejar Sorting (Teams invisibles solo para orden)
             String sortingTeamName = buildSortingTeamName(lp, target);
             Team sortTeam = board.getTeam(sortingTeamName);
             if (sortTeam == null) {
@@ -108,19 +109,19 @@ public class DisplayManager {
             }
 
             if (!sortTeam.hasEntry(target.getName())) {
+                // Limpiar otros teams de sorting previos
                 for (Team t : board.getTeams()) {
-                    if (t.getName().startsWith(NAMETAG_TEAM_PREFIX) && t.hasEntry(target.getName())) {
+                    if (t.getName().startsWith(SORTING_TEAM_PREFIX) && t.hasEntry(target.getName())) {
                         t.removeEntry(target.getName());
                     }
                 }
                 sortTeam.addEntry(target.getName());
             }
 
+            // 2. Manejar Name Layering (TabList Display Name)
             if (layeringEnabled) {
-                applyNameLayeringToTeam(viewer, target, sortTeam);
+                updatePlayerTabName(target);
             } else {
-                sortTeam.prefix(Component.empty());
-                sortTeam.suffix(Component.empty());
                 target.playerListName(null);
             }
         }
@@ -136,30 +137,33 @@ public class DisplayManager {
                 priority = plugin.getConfig().getString("Sorting.Groups." + group, "99");
             } catch (Exception ignored) {}
         }
-        String teamName = NAMETAG_TEAM_PREFIX + priority + group;
+        String teamName = SORTING_TEAM_PREFIX + priority + group;
         if (teamName.length() > 16) teamName = teamName.substring(0, 16);
         return teamName;
     }
 
-    private void applyNameLayeringToTeam(Player viewer, Player target, Team team) {
+    private void updatePlayerTabName(Player target) {
         String upRaw = plugin.getConfig().getString("TabList.Name_Layering.UpName", "");
         String centerRaw = plugin.getConfig().getString("TabList.Name_Layering.CenterName", "{player}");
         String downRaw = plugin.getConfig().getString("TabList.Name_Layering.DownName", "");
 
         String centerProcessed = centerRaw.replace("{player}", target.getName());
 
-        Component upComp = !upRaw.isEmpty() ? buildComponent(viewer, upRaw) : Component.empty();
-        Component centerComp = buildComponent(viewer, centerProcessed);
-        Component downComp = !downRaw.isEmpty() ? buildComponent(viewer, downRaw) : Component.empty();
+        Component upComp = !upRaw.isEmpty() ? buildComponent(target, upRaw) : null;
+        Component centerComp = buildComponent(target, centerProcessed);
+        Component downComp = !downRaw.isEmpty() ? buildComponent(target, downRaw) : null;
 
-        Component prefix = upRaw.isEmpty() ? centerComp : upComp.append(Component.newline()).append(centerComp);
-        Component suffix = downRaw.isEmpty() ? Component.empty() : Component.newline().append(downComp);
+        // Construir el nombre final con saltos de linea
+        Component finalName = Component.empty();
+        if (upComp != null) {
+            finalName = finalName.append(upComp).append(Component.newline());
+        }
+        finalName = finalName.append(centerComp);
+        if (downComp != null) {
+            finalName = finalName.append(Component.newline()).append(downComp);
+        }
 
-        team.prefix(prefix);
-        team.suffix(suffix);
-        
-        // Esencial para que el prefix/suffix del team se vea en el Tab
-        target.playerListName(Component.empty());
+        target.playerListName(finalName);
     }
 
     private void updateScoreboard(Player player) {
@@ -210,26 +214,43 @@ public class DisplayManager {
     public Component buildComponent(Player player, String text) {
         if (text == null || text.isEmpty()) return Component.empty();
 
-        // 1. Resolver Placeholders
+        // 1. Resolver Placeholders (PAPI)
         if (plugin.isPlaceholderApiPresent()) {
             text = PlaceholderAPI.setPlaceholders(player, text);
         }
 
-        // 2. Si contiene tags de MiniMessage, lo procesamos con MiniMessage
+        // 2. Normalizar colores Hex (#RRGGBB / &#RRGGBB) al formato MiniMessage <color:#RRGGBB>
+        // Esto permite que MiniMessage maneje los colores hex de forma nativa.
+        text = normalizeHexToMiniMessage(text);
+
+        // 3. Si contiene tags de MiniMessage (<...>), procesamos con MiniMessage
+        // Pero primero convertimos los codigos legacy & a tags de MiniMessage para que sea hibrido.
         if (text.contains("<") && text.contains(">")) {
-            // Antes de darselo a MiniMessage, convertimos los & legacy a tags de MiniMessage
-            // para permitir mezcla de formatos, pero SIN tocar los hex dentro de tags.
-            return miniMessage.deserialize(legacyToMiniMessage(text));
+            String mmText = legacyToMiniMessage(text);
+            try {
+                return miniMessage.deserialize(mmText);
+            } catch (Exception e) {
+                // Si falla el parseo de MiniMessage, devolvemos el texto plano coloreado con legacy
+                return legacySerializer.deserialize(translateHexToLegacyFormat(text));
+            }
         }
 
-        // 3. Si no tiene tags, usamos el serializador Legacy (que ahora SI tiene Hex activado)
-        // Primero normalizamos los #RRGGBB y &#RRGGBB al formato &x... para el serializador
-        text = translateHexToLegacyFormat(text);
-        return legacySerializer.deserialize(text);
+        // 4. Si no tiene tags, usamos el serializador Legacy
+        return legacySerializer.deserialize(translateHexToLegacyFormat(text));
+    }
+
+    private String normalizeHexToMiniMessage(String text) {
+        Matcher matcher = hexPattern.matcher(text);
+        StringBuilder sb = new StringBuilder();
+        while (matcher.find()) {
+            String hex = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
+            matcher.appendReplacement(sb, "<color:#" + hex + ">");
+        }
+        matcher.appendTail(sb);
+        return sb.toString();
     }
 
     private String legacyToMiniMessage(String text) {
-        // Convertir codigos legacy & a tags MiniMessage
         return text
                 .replace("&0", "<black>").replace("&1", "<dark_blue>").replace("&2", "<dark_green>")
                 .replace("&3", "<dark_aqua>").replace("&4", "<dark_red>").replace("&5", "<dark_purple>")
@@ -249,9 +270,7 @@ public class DisplayManager {
         StringBuilder buffer = new StringBuilder(message.length() + 4 * 8);
         while (matcher.find()) {
             String group = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
-            // Convertir a formato &x&R&R&G&G&B&B
-            matcher.appendReplacement(buffer,
-                    "&x&" + group.charAt(0) + "&" + group.charAt(1)
+            matcher.appendReplacement(buffer, "&x&" + group.charAt(0) + "&" + group.charAt(1)
                     + "&" + group.charAt(2) + "&" + group.charAt(3)
                     + "&" + group.charAt(4) + "&" + group.charAt(5));
         }
