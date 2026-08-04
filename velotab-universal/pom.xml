@@ -33,7 +33,7 @@
     </dependencies>
 
     <build>
-        <finalName>VeloTab-v1.5.9</finalName>
+        <finalName>VeloTab-v1.6.0</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

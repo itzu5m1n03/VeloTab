@@ -6,7 +6,6 @@
 package me.itzusman.velotab.paper;
 
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
@@ -28,7 +27,6 @@ public class DisplayManager {
 
     private final VeloTabPaperPlugin plugin;
     private final LegacyComponentSerializer legacySerializer = LegacyComponentSerializer.legacyAmpersand();
-    private final MiniMessage miniMessage = MiniMessage.miniMessage();
     private final Pattern hexPattern = Pattern.compile("&#([A-Fa-f0-9]{6})|#([A-Fa-f0-9]{6})");
     private BukkitRunnable updateTask;
 
@@ -115,12 +113,11 @@ public class DisplayManager {
             }
 
             // --- Name Layering (UpName, CenterName, DownName) ---
-            // Se ejecuta SIEMPRE, independientemente de LuckPerms
-            updatePlayerDisplayName(target, team);
+            updatePlayerDisplayName(target);
         }
     }
 
-    private void updatePlayerDisplayName(Player target, Team team) {
+    private void updatePlayerDisplayName(Player target) {
         boolean layeringEnabled = plugin.getConfig().getBoolean("TabList.Name_Layering.Enable", true);
         if (!layeringEnabled) {
             target.playerListName(null);
@@ -131,7 +128,7 @@ public class DisplayManager {
         String center = plugin.getConfig().getString("TabList.Name_Layering.CenterName", "{player}");
         String down = plugin.getConfig().getString("TabList.Name_Layering.DownName", "");
 
-        // Construir cada parte de forma independiente para evitar conflictos de estilo
+        // Construir componentes con el nuevo motor simplificado
         Component upComp = !up.isEmpty() ? buildComponent(target, up) : null;
         
         String centerProcessed = center.replace("{player}", target.getName());
@@ -139,7 +136,7 @@ public class DisplayManager {
         
         Component downComp = !down.isEmpty() ? buildComponent(target, down) : null;
 
-        // Unir componentes con saltos de línea explícitos
+        // Unión robusta con saltos de línea físicos
         Component finalName = Component.empty();
         if (upComp != null) {
             finalName = finalName.append(upComp).append(Component.newline());
@@ -201,56 +198,29 @@ public class DisplayManager {
     private Component buildComponent(Player player, String text) {
         if (text == null || text.isEmpty()) return Component.empty();
         
-        // Resolver Placeholders primero
+        // 1. Resolver Placeholders (PAPI)
         if (plugin.isPlaceholderApiPresent()) {
             text = PlaceholderAPI.setPlaceholders(player, text);
         }
 
-        // 1. Normalizar Hexadecimales a formato MiniMessage
-        // Convierte &#FFFFFF o #FFFFFF a <#FFFFFF>
-        String processed = text;
-        Matcher matcher = hexPattern.matcher(processed);
-        StringBuilder sb = new StringBuilder();
-        while (matcher.find()) {
-            String hex = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
-            matcher.appendReplacement(sb, "<#" + hex + ">");
-        }
-        matcher.appendTail(sb);
-        processed = sb.toString();
+        // 2. Traducir Hexadecimales (&#RRGGBB o #RRGGBB) al formato interno de Bukkit (§x§R§R§G§G§B§B)
+        text = translateHexToLegacy(text);
 
-        // 2. Convertir códigos legacy (&) a etiquetas MiniMessage
-        // Esto permite mezclar &c y <gradient> sin que se rompan
-        processed = legacyToMiniMessage(processed);
-
-        // 3. Deserializar con MiniMessage (soporta gradientes, hex, hover, etc.)
-        try {
-            return miniMessage.deserialize(processed);
-        } catch (Exception e) {
-            // Fallback a Legacy si MiniMessage falla
-            return legacySerializer.deserialize(text);
-        }
+        // 3. Deserializar usando el motor Legacy nativo (el más fiable)
+        return legacySerializer.deserialize(text);
     }
 
-    private String legacyToMiniMessage(String text) {
-        String[] legacy = {"&0", "&1", "&2", "&3", "&4", "&5", "&6", "&7", "&8", "&9", "&a", "&b", "&c", "&d", "&e", "&f", "&l", "&m", "&n", "&o", "&r",
-                           "§0", "§1", "§2", "§3", "§4", "§5", "§6", "§7", "§8", "§9", "§a", "§b", "§c", "§d", "§e", "§f", "§l", "§m", "§n", "§o", "§r"};
-        String[] mm = {"<black>", "<dark_blue>", "<dark_green>", "<dark_aqua>", "<dark_red>", "<dark_purple>", "<gold>", "<gray>", "<dark_gray>", "<blue>", "<green>", "<aqua>", "<red>", "<light_purple>", "<yellow>", "<white>", "<bold>", "<strikethrough>", "<underlined>", "<italic>", "<reset>",
-                       "<black>", "<dark_blue>", "<dark_green>", "<dark_aqua>", "<dark_red>", "<dark_purple>", "<gold>", "<gray>", "<dark_gray>", "<blue>", "<green>", "<aqua>", "<red>", "<light_purple>", "<yellow>", "<white>", "<bold>", "<strikethrough>", "<underlined>", "<italic>", "<reset>"};
-        
-        String result = text;
-        for (int i = 0; i < legacy.length; i++) {
-            result = result.replace(legacy[i], mm[i]);
-            result = result.replace(legacy[i].toUpperCase(), mm[i]);
-        }
-        return result;
-    }
-
-    private String translateHexToAmpersand(String message) {
+    private String translateHexToLegacy(String message) {
         Matcher matcher = hexPattern.matcher(message);
         StringBuilder buffer = new StringBuilder(message.length() + 4 * 8);
         while (matcher.find()) {
             String group = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
-            matcher.appendReplacement(buffer, "&x&" + group.charAt(0) + "&" + group.charAt(1) + "&" + group.charAt(2) + "&" + group.charAt(3) + "&" + group.charAt(4) + "&" + group.charAt(5));
+            // Convertir RRGGBB a §x§R§R§G§G§B§B
+            String legacyHex = "§x" + 
+                "§" + group.charAt(0) + "§" + group.charAt(1) + 
+                "§" + group.charAt(2) + "§" + group.charAt(3) + 
+                "§" + group.charAt(4) + "§" + group.charAt(5);
+            matcher.appendReplacement(buffer, legacyHex);
         }
         return matcher.appendTail(buffer).toString();
     }
