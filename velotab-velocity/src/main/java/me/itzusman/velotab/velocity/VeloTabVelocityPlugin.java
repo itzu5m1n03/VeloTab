@@ -23,7 +23,7 @@ import java.nio.file.Path;
 @Plugin(
         id = "velotab",
         name = "VeloTab",
-        version = "1.5.5",
+        version = "1.5.6",
         description = "Suite completa de TabList y Seguridad creada por ItzUsman.",
         authors = {"ItzUsman"}
 )
@@ -34,7 +34,7 @@ public class VeloTabVelocityPlugin {
     private final Path dataDirectory;
     private VeloTabConfig config;
     public static final MinecraftChannelIdentifier SYNC_CHANNEL = MinecraftChannelIdentifier.from("velotab:sync");
-    private static final String VERSION = "1.5.5";
+    private static final String VERSION = "1.5.6";
 
     @Inject
     public VeloTabVelocityPlugin(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory) {
@@ -58,7 +58,6 @@ public class VeloTabVelocityPlugin {
     }
 
     private void checkUpdates() {
-        // En Velocity, usamos el logger de slf4j convertido o el de java.util
         java.util.logging.Logger julLogger = java.util.logging.Logger.getLogger("VeloTab");
         
         UpdateChecker checker = new UpdateChecker(VERSION);
@@ -66,10 +65,7 @@ public class VeloTabVelocityPlugin {
             if (checker.isNewer(latestVersion)) {
                 logger.warn("¡Nueva version de VeloTab disponible: {}!", latestVersion);
                 
-                // Nota: El auto-updater en Velocity requiere que el usuario lo active en la config
-                // Para simplificar, usamos una comprobacion directa si existe la opcion
                 if (!downloadUrl.isEmpty()) {
-                    // Intentamos descargar en la carpeta de plugins
                     File targetFile = new File("plugins/VeloTab.jar");
                     AutoUpdater.downloadUpdate(downloadUrl, targetFile, julLogger, () -> {
                         logger.info("La actualizacion de Velocity se aplicara en el proximo reinicio.");

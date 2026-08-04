@@ -6,55 +6,68 @@
 # Idioma del plugin (es / en)
 language: es
 
+# --- ACTUALIZACIONES ---
+update_checker: true
+auto_update: false
+
+# --- SINCRONIZACION DE RED ---
+network_sync:
+  enable: true
+  is_master: false # Solo poner en true en el Proxy (Velocity/Bungee)
+
 # --- SEGURIDAD Y TAB ---
 Tab_Hide:
   enable: true
-  # Oculta comandos con prefijo (ej: litebans:warn)
   hide_prefixed_commands: true
-  # Comandos ocultos permanentemente
   force_hide:
     - "plugins"
     - "pl"
     - "version"
     - "ver"
-  # Comandos visibles siempre
   always_show:
     - "msg"
     - "spawn"
 
 # --- TABLIST (Header & Footer) ---
-# Soporta MiniMessage (RGB/Gradientes) y PlaceholderAPI
 TabList:
   Enable: true
-  Update_Interval: 20 # En ticks (20 = 1 segundo)
+  Update_Interval: 20
   Header:
-    - "<gradient:#fbff00:#ff0000><bold>VELOTAB.NET</bold></gradient>"
+    - "<gradient:#fbff00:#ff0000><bold>VELOTAB NETWORK</bold></gradient>"
     - "&7¡Bienvenido &e%player_name%&7!"
   Footer:
     - "&7Jugadores: &e%bungee_total% &8| &7Ping: &e%player_ping%ms"
     - "<gold>itzusm.netlify.app</gold>"
+  
+  # --- Name Layering (UpName, CenterName, DownName) ---
+  # Permite añadir lineas arriba y abajo del nombre del jugador en el Tab.
+  Name_Layering:
+    Enable: true
+    UpName: "&8[%luckperms_prefix%&8]"
+    CenterName: "&b{player}"
+    DownName: "&a%player_ping%ms"
 
 # --- SCOREBOARD ---
-# Soporta animaciones y colores RGB
 Scoreboard:
   Enable: true
   Title: "<gradient:#fbff00:#ff0000><bold>VELOTAB</bold></gradient>"
   Lines:
-    - "&8&m-------------------"
-    - "&fNombre: &e%player_name%"
+    - "&7%server_time_dd/MM/yyyy%"
+    - ""
+    - "&fNombre: &a%player_name%"
     - "&fRango: %luckperms_prefix%"
     - ""
-    - "&fLatencia: &e%player_ping%ms"
-    - "&fConectados: &e%bungee_total%"
+    - "&c⚔ Asesinatos: &f%statistic_player_kills%"
+    - "&4☠ Muertes: &f%statistic_deaths%"
     - ""
-    - "&eVELOTAB.NET"
-    - "&8&m-------------------"
+    - "&fLatencia: &a%player_ping%ms"
+    - "&fConectados: &a%bungee_total%"
+    - ""
+    - "&eitzusm.netlify.app"
 
 # --- ORDEN DE RANGOS (Sorting) ---
-# Determina el orden en el que aparecen los jugadores en el TabList.
 Sorting:
   Enable: true
-  # Formato: "nombre_grupo:prioridad" (Menor numero = mas arriba)
   Groups:
     fundador: "01"
     admin: "02"
@@ -67,7 +80,11 @@ Sorting:
 Chat_Format:
   Enable: true
   Default_Format: '&8[%luckperms_prefix%&8] &7{player} &8» &7{message}'
+  Player_Hover: |-
+    &eInformacion de &b%player_name%&7:
+    &fRango: %luckperms_prefix%
+    &fPing: &a%player_ping%ms
+    &7Haz click para enviarle un mensaje.
   Groups:
-    fundador: '&8[&4&lFUNDADOR&8] %luckperms_prefix%&7{player} &8» &f{message}'
     admin: '&8[&cADMIN&8] %luckperms_prefix%&7{player} &8» &f{message}'
     user: '&8[&7USER&8] &7{player} &8» &7{message}'
