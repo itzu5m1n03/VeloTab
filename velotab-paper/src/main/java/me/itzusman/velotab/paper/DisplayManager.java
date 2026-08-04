@@ -28,18 +28,20 @@ public class DisplayManager {
 
     private final VeloTabPaperPlugin plugin;
 
-    // Serializador Legacy usando '&' como caracter de color (compatible con legacyAmpersand)
-    private final LegacyComponentSerializer legacySerializer = LegacyComponentSerializer.legacyAmpersand();
+    // Serializador Legacy configurado para soportar Hex y codigos &
+    private final LegacyComponentSerializer legacySerializer = LegacyComponentSerializer.builder()
+            .character('&')
+            .hexColors()
+            .useUnusualXRepeatedCharacterHexFormat() // Soporta &x&r&r&g&g&b&b
+            .build();
 
-    // MiniMessage para tags como <gradient:...>, <bold>, etc.
+    // MiniMessage para tags avanzados
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
 
-    // Patron para &#RRGGBB y #RRGGBB
-    private final Pattern hexPattern = Pattern.compile("&#([A-Fa-f0-9]{6})|(?<![&])#([A-Fa-f0-9]{6})");
+    // Patron para detectar colores hexadecimales (&#RRGGBB o #RRGGBB)
+    private final Pattern hexPattern = Pattern.compile("&#([A-Fa-f0-9]{6})|(?<![#A-Fa-f0-9])#([A-Fa-f0-9]{6})");
 
     private BukkitRunnable updateTask;
-
-    // Prefijo unico para los teams de Name Layering
     private static final String NAMETAG_TEAM_PREFIX = "vt_nl_";
 
     public DisplayManager(VeloTabPaperPlugin plugin) {
@@ -68,10 +70,6 @@ public class DisplayManager {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // TabList: Header, Footer y Name Layering
-    // -------------------------------------------------------------------------
-
     private void updateTabList(Player player) {
         if (!plugin.getConfig().getBoolean("TabList.Enable", true)) return;
 
@@ -83,22 +81,9 @@ public class DisplayManager {
                 buildComponent(player, footerLines)
         );
 
-        // Aplicar Sorting global y Name Layering a todos los jugadores
         applyGlobalSortingAndNames(player);
     }
 
-    /**
-     * Para cada jugador online, aplica el sorting por grupo (LuckPerms) y el
-     * Name Layering (UpName / CenterName / DownName) usando Teams de Scoreboard.
-     *
-     * El Name Layering funciona de la siguiente manera:
-     *   - Team.prefix  = UpName   (linea superior, visible en el TabList)
-     *   - Team entry   = nombre del jugador (CenterName se aplica como displayName)
-     *   - Team.suffix  = DownName (linea inferior, visible en el TabList)
-     *
-     * Esto es el unico metodo que el protocolo de Minecraft soporta para mostrar
-     * texto extra arriba/abajo del nombre en el TabList sin mods del cliente.
-     */
     private void applyGlobalSortingAndNames(Player viewer) {
         Scoreboard board = viewer.getScoreboard();
         if (board == Bukkit.getScoreboardManager().getMainScoreboard()) {
@@ -122,21 +107,18 @@ public class DisplayManager {
                 sortTeam = board.registerNewTeam(sortingTeamName);
             }
 
-            // Asegurar que el jugador solo pertenece a un team vt_
             if (!sortTeam.hasEntry(target.getName())) {
                 for (Team t : board.getTeams()) {
-                    if (t.getName().startsWith("vt_") && t.hasEntry(target.getName())) {
+                    if (t.getName().startsWith(NAMETAG_TEAM_PREFIX) && t.hasEntry(target.getName())) {
                         t.removeEntry(target.getName());
                     }
                 }
                 sortTeam.addEntry(target.getName());
             }
 
-            // Aplicar Name Layering usando prefix/suffix del Team
             if (layeringEnabled) {
                 applyNameLayeringToTeam(viewer, target, sortTeam);
             } else {
-                // Sin layering: limpiar prefix/suffix y restaurar nombre
                 sortTeam.prefix(Component.empty());
                 sortTeam.suffix(Component.empty());
                 target.playerListName(null);
@@ -144,89 +126,41 @@ public class DisplayManager {
         }
     }
 
-    /**
-     * Construye el nombre del team de sorting para un jugador.
-     * Formato: vt_{prioridad}{grupo} (max 16 chars)
-     */
     private String buildSortingTeamName(LuckPerms lp, Player target) {
-        String teamName = NAMETAG_TEAM_PREFIX + "99default";
+        String priority = "99";
+        String group = "default";
         if (lp != null) {
             try {
                 User user = lp.getUserManager().getUser(target.getUniqueId());
-                String group = (user != null) ? user.getPrimaryGroup() : "default";
-                String priority = plugin.getConfig().getString("Sorting.Groups." + group, "99");
-                teamName = NAMETAG_TEAM_PREFIX + priority + group;
+                group = (user != null) ? user.getPrimaryGroup() : "default";
+                priority = plugin.getConfig().getString("Sorting.Groups." + group, "99");
             } catch (Exception ignored) {}
         }
-        // Los nombres de team tienen un maximo de 16 caracteres en Minecraft
+        String teamName = NAMETAG_TEAM_PREFIX + priority + group;
         if (teamName.length() > 16) teamName = teamName.substring(0, 16);
         return teamName;
     }
 
-    /**
-     * Aplica el Name Layering al team del jugador objetivo.
-     *
-     * El protocolo de Minecraft muestra en el TabList:
-     *   [Team.prefix][nombre del jugador][Team.suffix]
-     *
-     * Para simular 3 lineas usamos:
-     *   - prefix = UpName + "\n" + CenterName_coloreado
-     *   - entry  = nombre real del jugador (invisible con color negro o vacio)
-     *   - suffix = "\n" + DownName
-     *
-     * NOTA: En versiones modernas de Paper (1.20+) el TabList SI acepta
-     * saltos de linea dentro de prefix/suffix de Teams, lo que permite
-     * el efecto de 3 lineas. Esto es diferente a playerListName() que
-     * no acepta newlines.
-     */
     private void applyNameLayeringToTeam(Player viewer, Player target, Team team) {
-        String upRaw    = plugin.getConfig().getString("TabList.Name_Layering.UpName", "");
+        String upRaw = plugin.getConfig().getString("TabList.Name_Layering.UpName", "");
         String centerRaw = plugin.getConfig().getString("TabList.Name_Layering.CenterName", "{player}");
-        String downRaw  = plugin.getConfig().getString("TabList.Name_Layering.DownName", "");
+        String downRaw = plugin.getConfig().getString("TabList.Name_Layering.DownName", "");
 
-        // Reemplazar {player} con el nombre real del jugador
         String centerProcessed = centerRaw.replace("{player}", target.getName());
 
-        // Construir componentes individuales
-        Component upComp     = !upRaw.isEmpty()   ? buildComponent(viewer, upRaw)     : Component.empty();
+        Component upComp = !upRaw.isEmpty() ? buildComponent(viewer, upRaw) : Component.empty();
         Component centerComp = buildComponent(viewer, centerProcessed);
-        Component downComp   = !downRaw.isEmpty() ? buildComponent(viewer, downRaw)   : Component.empty();
+        Component downComp = !downRaw.isEmpty() ? buildComponent(viewer, downRaw) : Component.empty();
 
-        // --- Estrategia de prefix/suffix para el TabList ---
-        // prefix = UpName + newline + CenterName
-        // suffix = newline + DownName  (solo si hay DownName)
-        // La entrada del team (nombre del jugador) se oculta con un color transparente
-        // usando un playerListName vacio o con el nombre real si no hay center distinto.
-
-        Component prefix;
-        if (!upRaw.isEmpty()) {
-            prefix = upComp.append(Component.newline()).append(centerComp);
-        } else {
-            prefix = centerComp;
-        }
-
-        Component suffix;
-        if (!downRaw.isEmpty()) {
-            suffix = Component.newline().append(downComp);
-        } else {
-            suffix = Component.empty();
-        }
+        Component prefix = upRaw.isEmpty() ? centerComp : upComp.append(Component.newline()).append(centerComp);
+        Component suffix = downRaw.isEmpty() ? Component.empty() : Component.newline().append(downComp);
 
         team.prefix(prefix);
         team.suffix(suffix);
-
-        // Ocultar el nombre "real" del jugador en el TabList para que no se duplique
-        // Usamos un espacio vacio como playerListName para que el nombre del team
-        // (prefix + entry + suffix) sea lo unico visible.
-        // La entry del team es el nombre real del jugador (target.getName()), que
-        // queda "sandwiched" entre prefix y suffix. Para evitar duplicacion,
-        // configuramos el playerListName como un componente vacio.
+        
+        // Esencial para que el prefix/suffix del team se vea en el Tab
         target.playerListName(Component.empty());
     }
-
-    // -------------------------------------------------------------------------
-    // Scoreboard lateral
-    // -------------------------------------------------------------------------
 
     private void updateScoreboard(Player player) {
         if (!plugin.getConfig().getBoolean("Scoreboard.Enable", true)) return;
@@ -243,7 +177,6 @@ public class DisplayManager {
             obj = board.registerNewObjective("velotab_sb", "dummy", buildComponent(player, title));
             obj.setDisplaySlot(DisplaySlot.SIDEBAR);
         } else {
-            // Actualizar titulo dinamicamente
             String title = plugin.getConfig().getString("Scoreboard.Title", "&bVeloTab");
             obj.displayName(buildComponent(player, title));
         }
@@ -257,19 +190,13 @@ public class DisplayManager {
             Team team = board.getTeam(teamName);
             if (team == null) {
                 team = board.registerNewTeam(teamName);
-                // Entrada unica por linea usando codigos de color invisibles
                 String entry = "§" + Integer.toHexString(i / 16) + "§" + Integer.toHexString(i % 16) + "§r";
                 team.addEntry(entry);
                 obj.getScore(entry).setScore(size - i);
             }
-
             team.prefix(buildComponent(player, line));
         }
     }
-
-    // -------------------------------------------------------------------------
-    // Motor de construccion de componentes (colores arreglados)
-    // -------------------------------------------------------------------------
 
     private Component buildComponent(Player player, List<String> lines) {
         Component finalComp = Component.empty();
@@ -280,65 +207,29 @@ public class DisplayManager {
         return finalComp;
     }
 
-    /**
-     * Construye un Component desde un String, soportando:
-     *   - Placeholders de PlaceholderAPI (%placeholder%)
-     *   - Colores hex: #RRGGBB y &#RRGGBB
-     *   - Colores legacy: &a, &b, &c, &l, &n, etc.
-     *   - Tags de MiniMessage: <gradient:...>, <bold>, <color:#RRGGBB>, etc.
-     */
-    private Component buildComponent(Player player, String text) {
+    public Component buildComponent(Player player, String text) {
         if (text == null || text.isEmpty()) return Component.empty();
 
-        // 1. Resolver Placeholders de PlaceholderAPI
+        // 1. Resolver Placeholders
         if (plugin.isPlaceholderApiPresent()) {
             text = PlaceholderAPI.setPlaceholders(player, text);
         }
 
-        // 2. Detectar si el texto contiene tags de MiniMessage (<gradient:...>, <bold>, etc.)
-        //    En ese caso, primero convertimos los codigos legacy &x y hex &#RRGGBB a
-        //    formato MiniMessage para que todo sea procesado por un solo motor.
-        if (containsMiniMessageTags(text)) {
-            text = legacyAndHexToMiniMessage(text);
-            return miniMessage.deserialize(text);
+        // 2. Si contiene tags de MiniMessage, lo procesamos con MiniMessage
+        if (text.contains("<") && text.contains(">")) {
+            // Antes de darselo a MiniMessage, convertimos los & legacy a tags de MiniMessage
+            // para permitir mezcla de formatos, pero SIN tocar los hex dentro de tags.
+            return miniMessage.deserialize(legacyToMiniMessage(text));
         }
 
-        // 3. Para texto puramente legacy: convertir &#RRGGBB / #RRGGBB al formato
-        //    &x&R&R&G&G&B&B que entiende LegacyComponentSerializer.legacyAmpersand()
-        //    CORRECCION: se usa '&' (ampersand) NO '§' (seccion)
-        text = translateHexToAmpersand(text);
+        // 3. Si no tiene tags, usamos el serializador Legacy (que ahora SI tiene Hex activado)
+        // Primero normalizamos los #RRGGBB y &#RRGGBB al formato &x... para el serializador
+        text = translateHexToLegacyFormat(text);
         return legacySerializer.deserialize(text);
     }
 
-    /**
-     * Detecta si el texto contiene tags de MiniMessage como <gradient:...>, <bold>,
-     * <color:#...>, <red>, <aqua>, etc.
-     */
-    private boolean containsMiniMessageTags(String text) {
-        return text.contains("<gradient") || text.contains("<color:") || text.contains("<rainbow")
-                || text.contains("<bold>") || text.contains("<italic>") || text.contains("<underlined>")
-                || text.contains("<strikethrough>") || text.contains("<obfuscated>") || text.contains("<reset>")
-                || text.contains("<red>") || text.contains("<green>") || text.contains("<blue>")
-                || text.contains("<yellow>") || text.contains("<gold>") || text.contains("<aqua>")
-                || text.contains("<white>") || text.contains("<black>") || text.contains("<gray>")
-                || text.contains("<dark_");
-    }
-
-    /**
-     * Convierte codigos legacy (&a, &b, &l, etc.) y hex (&#RRGGBB, #RRGGBB) a
-     * formato MiniMessage para ser procesados por MiniMessage.miniMessage().
-     */
-    private String legacyAndHexToMiniMessage(String text) {
-        // Primero convertir hex &#RRGGBB y #RRGGBB a <color:#RRGGBB>
-        Matcher hexMatcher = hexPattern.matcher(text);
-        StringBuffer hexBuffer = new StringBuffer();
-        while (hexMatcher.find()) {
-            String group = hexMatcher.group(1) != null ? hexMatcher.group(1) : hexMatcher.group(2);
-            hexMatcher.appendReplacement(hexBuffer, "<color:#" + group + ">");
-        }
-        text = hexMatcher.appendTail(hexBuffer).toString();
-
-        // Luego convertir codigos legacy & a tags MiniMessage
+    private String legacyToMiniMessage(String text) {
+        // Convertir codigos legacy & a tags MiniMessage
         return text
                 .replace("&0", "<black>").replace("&1", "<dark_blue>").replace("&2", "<dark_green>")
                 .replace("&3", "<dark_aqua>").replace("&4", "<dark_red>").replace("&5", "<dark_purple>")
@@ -347,28 +238,18 @@ public class DisplayManager {
                 .replace("&c", "<red>").replace("&d", "<light_purple>").replace("&e", "<yellow>")
                 .replace("&f", "<white>").replace("&l", "<bold>").replace("&m", "<strikethrough>")
                 .replace("&n", "<underlined>").replace("&o", "<italic>").replace("&r", "<reset>")
-                // Mayusculas tambien
                 .replace("&A", "<green>").replace("&B", "<aqua>").replace("&C", "<red>")
                 .replace("&D", "<light_purple>").replace("&E", "<yellow>").replace("&F", "<white>")
                 .replace("&L", "<bold>").replace("&M", "<strikethrough>").replace("&N", "<underlined>")
                 .replace("&O", "<italic>").replace("&R", "<reset>");
     }
 
-    /**
-     * Convierte &#RRGGBB y #RRGGBB al formato &x&R&R&G&G&B&B que entiende
-     * LegacyComponentSerializer.legacyAmpersand().
-     *
-     * CORRECCION CRITICA: Se usa '&' (ampersand) en lugar de '§' (seccion).
-     * El serializador legacyAmpersand() espera '&' como caracter de escape,
-     * NO el caracter de seccion §. Usar § causaba que los colores hex no se
-     * renderizaran correctamente.
-     */
-    private String translateHexToAmpersand(String message) {
+    private String translateHexToLegacyFormat(String message) {
         Matcher matcher = hexPattern.matcher(message);
         StringBuilder buffer = new StringBuilder(message.length() + 4 * 8);
         while (matcher.find()) {
             String group = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
-            // CORRECTO: usar '&' para compatibilidad con legacyAmpersand()
+            // Convertir a formato &x&R&R&G&G&B&B
             matcher.appendReplacement(buffer,
                     "&x&" + group.charAt(0) + "&" + group.charAt(1)
                     + "&" + group.charAt(2) + "&" + group.charAt(3)
