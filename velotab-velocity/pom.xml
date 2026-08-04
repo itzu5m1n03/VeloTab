@@ -7,7 +7,7 @@
     <parent>
         <groupId>me.itzusman</groupId>
         <artifactId>VeloTab-Parent</artifactId>
-        <version>1.6.5</version>
+        <version>1.6.6</version>
     </parent>
 
     <artifactId>VeloTab-Velocity</artifactId>
@@ -24,7 +24,7 @@
         <dependency>
             <groupId>me.itzusman</groupId>
             <artifactId>VeloTab-Common</artifactId>
-            <version>1.6.5</version>
+            <version>1.6.6</version>
         </dependency>
         <dependency>
             <groupId>com.velocitypowered</groupId>

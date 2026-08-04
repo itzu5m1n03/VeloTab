@@ -97,12 +97,16 @@ public class DisplayManager {
         boolean layeringEnabled = plugin.getConfig().getBoolean("TabList.Name_Layering.Enable", true);
 
         for (Player target : Bukkit.getOnlinePlayers()) {
-            // Sorting Team
+            // Sorting Team (SOLO para orden, no para nombres)
             String sortingTeamName = buildSortingTeamName(lp, target);
             Team team = board.getTeam(sortingTeamName);
             if (team == null) {
                 team = board.registerNewTeam(sortingTeamName);
             }
+
+            // Limpiar prefijos/sufijos del team para que no interfieran
+            team.prefix(Component.empty());
+            team.suffix(Component.empty());
 
             if (!team.hasEntry(target.getName())) {
                 for (Team t : board.getTeams()) {
@@ -113,12 +117,10 @@ public class DisplayManager {
                 team.addEntry(target.getName());
             }
 
-            // Name Layering (TabList Display Name)
+            // Name Layering (INDIVIDUAL usando playerListName)
             if (layeringEnabled) {
-                updatePlayerTabName(target, team);
+                updatePlayerTabName(target);
             } else {
-                team.prefix(Component.empty());
-                team.suffix(Component.empty());
                 target.playerListName(null);
             }
         }
@@ -139,7 +141,7 @@ public class DisplayManager {
         return teamName;
     }
 
-    private void updatePlayerTabName(Player target, Team team) {
+    private void updatePlayerTabName(Player target) {
         String upRaw = plugin.getConfig().getString("TabList.Name_Layering.UpName", "");
         String centerRaw = plugin.getConfig().getString("TabList.Name_Layering.CenterName", "{player}");
         String downRaw = plugin.getConfig().getString("TabList.Name_Layering.DownName", "");
@@ -150,24 +152,18 @@ public class DisplayManager {
         Component centerComp = buildComponent(target, centerProcessed);
         Component downComp = !downRaw.isEmpty() ? buildComponent(target, downRaw) : null;
 
-        // Metodo TAB: Usar Team Prefix/Suffix para las lineas extra
-        // prefix = UpName + \n
-        // entry = CenterName (via playerListName)
-        // suffix = \n + DownName
-        
+        // Construir el componente individual para este jugador
+        Component finalName = Component.empty();
         if (upComp != null) {
-            team.prefix(upComp.append(Component.newline()));
-        } else {
-            team.prefix(Component.empty());
+            finalName = finalName.append(upComp).append(Component.newline());
         }
-
+        finalName = finalName.append(centerComp);
         if (downComp != null) {
-            team.suffix(Component.newline().append(downComp));
-        } else {
-            team.suffix(Component.empty());
+            finalName = finalName.append(Component.newline()).append(downComp);
         }
 
-        target.playerListName(centerComp);
+        // Aplicar directamente al jugador (individual, sin usar Teams)
+        target.playerListName(finalName);
     }
 
     private void updateScoreboard(Player player) {
@@ -218,17 +214,14 @@ public class DisplayManager {
     public Component buildComponent(Player player, String text) {
         if (text == null || text.isEmpty()) return Component.empty();
 
-        // 1. Placeholders
+        // 1. Resolver Placeholders (PAPI)
         if (plugin.isPlaceholderApiPresent()) {
             text = PlaceholderAPI.setPlaceholders(player, text);
         }
 
-        // 2. Motor Legacy + Hex puro
-        // Traducimos &#RRGGBB y #RRGGBB al formato &x&R&R&G&G&B&B que Adventure entiende nativamente
+        // 2. Motor Legacy + Hex puro (SIN MiniMessage)
+        // Traducimos &#RRGGBB y #RRGGBB al formato &x&R&R&G&G&B&B
         String coloredText = translateHexToLegacy(text);
-        
-        // 3. Eliminar cualquier rastro de tags MiniMessage si el usuario los puso por error
-        coloredText = coloredText.replaceAll("<[^>]*>", "");
 
         return legacySerializer.deserialize(coloredText);
     }
@@ -238,7 +231,7 @@ public class DisplayManager {
         StringBuilder buffer = new StringBuilder(message.length() + 4 * 8);
         while (matcher.find()) {
             String group = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
-            // Formato estandar de Bungee/Spigot para Hex: &x&r&r&g&g&b&b
+            // Formato estandar de Minecraft para Hex: &x&r&r&g&g&b&b
             matcher.appendReplacement(buffer, "&x&" + group.charAt(0) + "&" + group.charAt(1)
                     + "&" + group.charAt(2) + "&" + group.charAt(3)
                     + "&" + group.charAt(4) + "&" + group.charAt(5));
