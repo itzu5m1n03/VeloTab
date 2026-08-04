@@ -121,9 +121,9 @@ public class DisplayManager {
     }
 
     private void updatePlayerDisplayName(Player target, Team team) {
-        boolean layeringEnabled = plugin.getConfig().getBoolean("TabList.Name_Layering.Enable", false);
+        boolean layeringEnabled = plugin.getConfig().getBoolean("TabList.Name_Layering.Enable", true);
         if (!layeringEnabled) {
-            target.playerListName(null); // Reset a default
+            target.playerListName(null);
             return;
         }
 
@@ -131,19 +131,26 @@ public class DisplayManager {
         String center = plugin.getConfig().getString("TabList.Name_Layering.CenterName", "{player}");
         String down = plugin.getConfig().getString("TabList.Name_Layering.DownName", "");
 
-        Component finalName = Component.empty();
+        Component finalName = null;
         
         if (!up.isEmpty()) {
-            finalName = finalName.append(buildComponent(target, up)).append(Component.newline());
+            finalName = buildComponent(target, up);
         }
         
         String centerProcessed = center.replace("{player}", target.getName());
-        finalName = finalName.append(buildComponent(target, centerProcessed));
+        Component centerComp = buildComponent(target, centerProcessed);
+        
+        if (finalName == null) {
+            finalName = centerComp;
+        } else {
+            finalName = finalName.append(Component.newline()).append(centerComp);
+        }
         
         if (!down.isEmpty()) {
             finalName = finalName.append(Component.newline()).append(buildComponent(target, down));
         }
 
+        // Forzar la actualización en Paper
         target.playerListName(finalName);
     }
 
@@ -191,41 +198,48 @@ public class DisplayManager {
     }
 
     private Component buildComponent(Player player, String text) {
+        if (text == null || text.isEmpty()) return Component.empty();
+        
         if (plugin.isPlaceholderApiPresent()) {
             text = PlaceholderAPI.setPlaceholders(player, text);
         }
 
-        if (text.contains("<") && text.contains(">")) {
-            String mmText = legacyToMiniMessage(text);
-            return miniMessage.deserialize(mmText);
-        } else {
-            text = translateHexToAmpersand(text);
-            return legacySerializer.deserialize(text);
+        // 1. Convertir Hex legacy (&#RRGGBB o #RRGGBB) a MiniMessage (<#RRGGBB>)
+        String processed = text;
+        Matcher matcher = hexPattern.matcher(processed);
+        StringBuilder sb = new StringBuilder();
+        while (matcher.find()) {
+            String hex = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
+            matcher.appendReplacement(sb, "<#" + hex + ">");
         }
+        matcher.appendTail(sb);
+        processed = sb.toString();
+
+        // 2. Si contiene etiquetas MiniMessage o forzamos conversión de legacy
+        if (processed.contains("<") || processed.contains("&")) {
+            String mmText = legacyToMiniMessage(processed);
+            try {
+                return miniMessage.deserialize(mmText);
+            } catch (Exception e) {
+                return legacySerializer.deserialize(text);
+            }
+        }
+
+        return Component.text(processed);
     }
 
     private String legacyToMiniMessage(String text) {
-        return text.replace("&0", "<black>")
-                   .replace("&1", "<dark_blue>")
-                   .replace("&2", "<dark_green>")
-                   .replace("&3", "<dark_aqua>")
-                   .replace("&4", "<dark_red>")
-                   .replace("&5", "<dark_purple>")
-                   .replace("&6", "<gold>")
-                   .replace("&7", "<gray>")
-                   .replace("&8", "<dark_gray>")
-                   .replace("&9", "<blue>")
-                   .replace("&a", "<green>")
-                   .replace("&b", "<aqua>")
-                   .replace("&c", "<red>")
-                   .replace("&d", "<light_purple>")
-                   .replace("&e", "<yellow>")
-                   .replace("&f", "<white>")
-                   .replace("&l", "<bold>")
-                   .replace("&m", "<strikethrough>")
-                   .replace("&n", "<underlined>")
-                   .replace("&o", "<italic>")
-                   .replace("&r", "<reset>");
+        String[] legacy = {"&0", "&1", "&2", "&3", "&4", "&5", "&6", "&7", "&8", "&9", "&a", "&b", "&c", "&d", "&e", "&f", "&l", "&m", "&n", "&o", "&r",
+                           "§0", "§1", "§2", "§3", "§4", "§5", "§6", "§7", "§8", "§9", "§a", "§b", "§c", "§d", "§e", "§f", "§l", "§m", "§n", "§o", "§r"};
+        String[] mm = {"<black>", "<dark_blue>", "<dark_green>", "<dark_aqua>", "<dark_red>", "<dark_purple>", "<gold>", "<gray>", "<dark_gray>", "<blue>", "<green>", "<aqua>", "<red>", "<light_purple>", "<yellow>", "<white>", "<bold>", "<strikethrough>", "<underlined>", "<italic>", "<reset>",
+                       "<black>", "<dark_blue>", "<dark_green>", "<dark_aqua>", "<dark_red>", "<dark_purple>", "<gold>", "<gray>", "<dark_gray>", "<blue>", "<green>", "<aqua>", "<red>", "<light_purple>", "<yellow>", "<white>", "<bold>", "<strikethrough>", "<underlined>", "<italic>", "<reset>"};
+        
+        String result = text;
+        for (int i = 0; i < legacy.length; i++) {
+            result = result.replace(legacy[i], mm[i]);
+            result = result.replace(legacy[i].toUpperCase(), mm[i]);
+        }
+        return result;
     }
 
     private String translateHexToAmpersand(String message) {
