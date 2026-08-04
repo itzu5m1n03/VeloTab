@@ -7,9 +7,7 @@
 language: es
 
 # --- ACTUALIZACIONES ---
-# Comprobar actualizaciones automaticamente
 update_checker: true
-# Descargar automaticamente la nueva version (requiere reinicio para aplicar)
 auto_update: false
 
 # --- SINCRONIZACION DE RED ---
@@ -31,7 +29,6 @@ Tab_Hide:
     - "spawn"
 
 # --- TABLIST (Header & Footer) ---
-# Soporta MiniMessage (RGB/Gradientes) y PlaceholderAPI
 TabList:
   Enable: true
   Update_Interval: 20
@@ -41,6 +38,14 @@ TabList:
   Footer:
     - "&7Jugadores: &e%bungee_total% &8| &7Ping: &e%player_ping%ms"
     - "<gold>itzusm.netlify.app</gold>"
+  
+  # --- Name Layering (UpName, CenterName, DownName) ---
+  # Permite añadir lineas arriba y abajo del nombre del jugador en el Tab.
+  Name_Layering:
+    Enable: true
+    UpName: "&8[%luckperms_prefix%&8]"
+    CenterName: "&b{player}"
+    DownName: "&a%player_ping%ms"
 
 # --- SCOREBOARD ---
 Scoreboard:
@@ -75,7 +80,6 @@ Sorting:
 Chat_Format:
   Enable: true
   Default_Format: '&8[%luckperms_prefix%&8] &7{player} &8» &7{message}'
-  # Texto que aparece al poner el raton sobre el nombre del jugador
   Player_Hover: |-
     &eInformacion de &b%player_name%&7:
     &fRango: %luckperms_prefix%

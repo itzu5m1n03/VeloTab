@@ -69,12 +69,11 @@ public class DisplayManager {
                 buildComponent(player, footerLines)
         );
 
-        if (plugin.getConfig().getBoolean("Sorting.Enable", true)) {
-            applyGlobalSorting(player);
-        }
+        // Sorting Global y Name Layering (UpName, CenterName, DownName)
+        applyGlobalSortingAndNames(player);
     }
 
-    private void applyGlobalSorting(Player viewer) {
+    private void applyGlobalSortingAndNames(Player viewer) {
         if (!plugin.isLuckPermsPresent()) return;
 
         Scoreboard board = viewer.getScoreboard();
@@ -90,6 +89,7 @@ public class DisplayManager {
                 String group = (user != null) ? user.getPrimaryGroup() : "default";
                 String priority = plugin.getConfig().getString("Sorting.Groups." + group, "99");
                 
+                // Nombre del equipo basado en prioridad
                 String teamName = "vt_" + priority + group;
                 if (teamName.length() > 16) teamName = teamName.substring(0, 16);
 
@@ -104,8 +104,38 @@ public class DisplayManager {
                     }
                     team.addEntry(target.getName());
                 }
+
+                // --- NUEVO: Name Layering (UpName, CenterName, DownName) ---
+                updatePlayerDisplayName(target, team);
             }
         } catch (Exception ignored) {}
+    }
+
+    private void updatePlayerDisplayName(Player target, Team team) {
+        boolean layeringEnabled = plugin.getConfig().getBoolean("TabList.Name_Layering.Enable", false);
+        if (!layeringEnabled) {
+            target.playerListName(null); // Reset a default
+            return;
+        }
+
+        String up = plugin.getConfig().getString("TabList.Name_Layering.UpName", "");
+        String center = plugin.getConfig().getString("TabList.Name_Layering.CenterName", "{player}");
+        String down = plugin.getConfig().getString("TabList.Name_Layering.DownName", "");
+
+        Component finalName = Component.empty();
+        
+        if (!up.isEmpty()) {
+            finalName = finalName.append(buildComponent(target, up)).append(Component.newline());
+        }
+        
+        String centerProcessed = center.replace("{player}", target.getName());
+        finalName = finalName.append(buildComponent(target, centerProcessed));
+        
+        if (!down.isEmpty()) {
+            finalName = finalName.append(Component.newline()).append(buildComponent(target, down));
+        }
+
+        target.playerListName(finalName);
     }
 
     private void updateScoreboard(Player player) {
@@ -160,7 +190,6 @@ public class DisplayManager {
             String mmText = legacyToMiniMessage(text);
             return miniMessage.deserialize(mmText);
         } else {
-            // Corregido: Usar '&' para que coincida con legacySerializer (legacyAmpersand)
             text = translateHexToAmpersand(text);
             return legacySerializer.deserialize(text);
         }
@@ -195,7 +224,6 @@ public class DisplayManager {
         StringBuilder buffer = new StringBuilder(message.length() + 4 * 8);
         while (matcher.find()) {
             String group = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
-            // Corregido: Usar '&' en lugar de '§' para ser compatible con legacyAmpersand()
             matcher.appendReplacement(buffer, "&x&" + group.charAt(0) + "&" + group.charAt(1) + "&" + group.charAt(2) + "&" + group.charAt(3) + "&" + group.charAt(4) + "&" + group.charAt(5));
         }
         return matcher.appendTail(buffer).toString();
