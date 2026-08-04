@@ -23,7 +23,7 @@ import java.nio.file.Path;
 @Plugin(
         id = "velotab",
         name = "VeloTab",
-        version = "1.6.0",
+        version = "1.6.1",
         description = "Suite completa de TabList y Seguridad creada por ItzUsman.",
         authors = {"ItzUsman"}
 )
@@ -34,7 +34,7 @@ public class VeloTabVelocityPlugin {
     private final Path dataDirectory;
     private VeloTabConfig config;
     public static final MinecraftChannelIdentifier SYNC_CHANNEL = MinecraftChannelIdentifier.from("velotab:sync");
-    private static final String VERSION = "1.6.0";
+    private static final String VERSION = "1.6.1";
 
     @Inject
     public VeloTabVelocityPlugin(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory) {

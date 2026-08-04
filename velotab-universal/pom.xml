@@ -7,7 +7,7 @@
     <parent>
         <groupId>me.itzusman</groupId>
         <artifactId>VeloTab-Parent</artifactId>
-        <version>1.6.0</version>
+        <version>1.6.1</version>
     </parent>
 
     <artifactId>VeloTab</artifactId>
@@ -17,23 +17,23 @@
         <dependency>
             <groupId>me.itzusman</groupId>
             <artifactId>VeloTab-Common</artifactId>
-            <version>1.6.0</version>
+            <version>1.6.1</version>
         </dependency>
         <dependency>
             <groupId>me.itzusman</groupId>
             <artifactId>VeloTab-Paper</artifactId>
-            <version>1.6.0</version>
+            <version>1.6.1</version>
         </dependency>
         <dependency>
             <groupId>me.itzusman</groupId>
             <artifactId>VeloTab-Velocity</artifactId>
-            <version>1.6.0</version>
+            <version>1.6.1</version>
         </dependency>
         <!-- BungeeCord se omite si da problemas de repo, pero lo ideal es incluirlo -->
     </dependencies>
 
     <build>
-        <finalName>VeloTab-v1.6.0</finalName>
+        <finalName>VeloTab-v1.6.1</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
