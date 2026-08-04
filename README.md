@@ -1,4 +1,4 @@
-# 🚀 VeloTab: La Suite Integral para tu Red de Minecraft
+# 🚀 VeloTab
 
 **VeloTab** es una solución "todo en uno" de alto rendimiento diseñada por **ItzUsman**. Este plugin centraliza la gestión estética y de seguridad de tu servidor en un único JAR universal, eliminando la necesidad de múltiples plugins pesados y facilitando la administración global.
 
