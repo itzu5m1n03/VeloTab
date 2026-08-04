@@ -23,7 +23,7 @@ import java.nio.file.Path;
 @Plugin(
         id = "velotab",
         name = "VeloTab",
-        version = "1.5.6",
+        version = "1.5.7",
         description = "Suite completa de TabList y Seguridad creada por ItzUsman.",
         authors = {"ItzUsman"}
 )

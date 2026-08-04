@@ -74,41 +74,50 @@ public class DisplayManager {
     }
 
     private void applyGlobalSortingAndNames(Player viewer) {
-        if (!plugin.isLuckPermsPresent()) return;
-
         Scoreboard board = viewer.getScoreboard();
         if (board == Bukkit.getScoreboardManager().getMainScoreboard()) {
             board = Bukkit.getScoreboardManager().getNewScoreboard();
             viewer.setScoreboard(board);
         }
 
-        try {
-            LuckPerms lp = LuckPermsProvider.get();
-            for (Player target : Bukkit.getOnlinePlayers()) {
-                User user = lp.getUserManager().getUser(target.getUniqueId());
-                String group = (user != null) ? user.getPrimaryGroup() : "default";
-                String priority = plugin.getConfig().getString("Sorting.Groups." + group, "99");
-                
-                // Nombre del equipo basado en prioridad
-                String teamName = "vt_" + priority + group;
-                if (teamName.length() > 16) teamName = teamName.substring(0, 16);
+        LuckPerms lp = null;
+        if (plugin.isLuckPermsPresent()) {
+            try {
+                lp = LuckPermsProvider.get();
+            } catch (Exception ignored) {}
+        }
 
-                Team team = board.getTeam(teamName);
-                if (team == null) team = board.registerNewTeam(teamName);
-                
-                if (!team.hasEntry(target.getName())) {
-                    for (Team oldTeam : board.getTeams()) {
-                        if (oldTeam.getName().startsWith("vt_") && oldTeam.hasEntry(target.getName())) {
-                            oldTeam.removeEntry(target.getName());
+        for (Player target : Bukkit.getOnlinePlayers()) {
+            Team team = null;
+            
+            // Lógica de Sorting con LuckPerms
+            if (lp != null) {
+                try {
+                    User user = lp.getUserManager().getUser(target.getUniqueId());
+                    String group = (user != null) ? user.getPrimaryGroup() : "default";
+                    String priority = plugin.getConfig().getString("Sorting.Groups." + group, "99");
+                    
+                    String teamName = "vt_" + priority + group;
+                    if (teamName.length() > 16) teamName = teamName.substring(0, 16);
+
+                    team = board.getTeam(teamName);
+                    if (team == null) team = board.registerNewTeam(teamName);
+                    
+                    if (!team.hasEntry(target.getName())) {
+                        for (Team oldTeam : board.getTeams()) {
+                            if (oldTeam.getName().startsWith("vt_") && oldTeam.hasEntry(target.getName())) {
+                                oldTeam.removeEntry(target.getName());
+                            }
                         }
+                        team.addEntry(target.getName());
                     }
-                    team.addEntry(target.getName());
-                }
-
-                // --- NUEVO: Name Layering (UpName, CenterName, DownName) ---
-                updatePlayerDisplayName(target, team);
+                } catch (Exception ignored) {}
             }
-        } catch (Exception ignored) {}
+
+            // --- Name Layering (UpName, CenterName, DownName) ---
+            // Se ejecuta SIEMPRE, independientemente de LuckPerms
+            updatePlayerDisplayName(target, team);
+        }
     }
 
     private void updatePlayerDisplayName(Player target, Team team) {
