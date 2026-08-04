@@ -97,16 +97,25 @@ public class DisplayManager {
         boolean layeringEnabled = plugin.getConfig().getBoolean("TabList.Name_Layering.Enable", true);
 
         for (Player target : Bukkit.getOnlinePlayers()) {
-            // Sorting Team (SOLO para orden, no para nombres)
-            String sortingTeamName = buildSortingTeamName(lp, target);
-            Team team = board.getTeam(sortingTeamName);
-            if (team == null) {
-                team = board.registerNewTeam(sortingTeamName);
+            String priority = "99";
+            String group = "default";
+            if (lp != null) {
+                try {
+                    User user = lp.getUserManager().getUser(target.getUniqueId());
+                    group = (user != null) ? user.getPrimaryGroup() : "default";
+                    priority = plugin.getConfig().getString("Sorting.Groups." + group, "99");
+                } catch (Exception ignored) {}
             }
 
-            // Limpiar prefijos/sufijos del team para que no interfieran
-            team.prefix(Component.empty());
-            team.suffix(Component.empty());
+            // Team UNICO por jugador para que el prefix/suffix no se pise.
+            // Usamos prioridad + hash de UUID para mantener el orden pero ser únicos.
+            String teamName = SORTING_TEAM_PREFIX + priority + "_" + Integer.toHexString(target.getUniqueId().hashCode());
+            if (teamName.length() > 16) teamName = teamName.substring(0, 16);
+
+            Team team = board.getTeam(teamName);
+            if (team == null) {
+                team = board.registerNewTeam(teamName);
+            }
 
             if (!team.hasEntry(target.getName())) {
                 for (Team t : board.getTeams()) {
@@ -117,53 +126,30 @@ public class DisplayManager {
                 team.addEntry(target.getName());
             }
 
-            // Name Layering (INDIVIDUAL usando playerListName)
             if (layeringEnabled) {
-                updatePlayerTabName(target);
+                String up = plugin.getConfig().getString("TabList.Name_Layering.UpName", "");
+                String centerRaw = plugin.getConfig().getString("TabList.Name_Layering.CenterName", "{player}");
+                String down = plugin.getConfig().getString("TabList.Name_Layering.DownName", "");
+
+                // Prefix: UpName + Salto de línea
+                team.prefix(!up.isEmpty()
+                        ? buildComponent(target, up).append(Component.newline())
+                        : Component.empty());
+
+                // Suffix: Salto de línea + DownName
+                team.suffix(!down.isEmpty()
+                        ? Component.newline().append(buildComponent(target, down))
+                        : Component.empty());
+
+                // CenterName: Aplicado directamente al nombre en el Tab
+                String centerProcessed = centerRaw.replace("{player}", target.getName());
+                target.playerListName(buildComponent(target, centerProcessed));
             } else {
+                team.prefix(Component.empty());
+                team.suffix(Component.empty());
                 target.playerListName(null);
             }
         }
-    }
-
-    private String buildSortingTeamName(LuckPerms lp, Player target) {
-        String priority = "99";
-        String group = "default";
-        if (lp != null) {
-            try {
-                User user = lp.getUserManager().getUser(target.getUniqueId());
-                group = (user != null) ? user.getPrimaryGroup() : "default";
-                priority = plugin.getConfig().getString("Sorting.Groups." + group, "99");
-            } catch (Exception ignored) {}
-        }
-        String teamName = SORTING_TEAM_PREFIX + priority + group;
-        if (teamName.length() > 16) teamName = teamName.substring(0, 16);
-        return teamName;
-    }
-
-    private void updatePlayerTabName(Player target) {
-        String upRaw = plugin.getConfig().getString("TabList.Name_Layering.UpName", "");
-        String centerRaw = plugin.getConfig().getString("TabList.Name_Layering.CenterName", "{player}");
-        String downRaw = plugin.getConfig().getString("TabList.Name_Layering.DownName", "");
-
-        String centerProcessed = centerRaw.replace("{player}", target.getName());
-
-        Component upComp = !upRaw.isEmpty() ? buildComponent(target, upRaw) : null;
-        Component centerComp = buildComponent(target, centerProcessed);
-        Component downComp = !downRaw.isEmpty() ? buildComponent(target, downRaw) : null;
-
-        // Construir el componente individual para este jugador
-        Component finalName = Component.empty();
-        if (upComp != null) {
-            finalName = finalName.append(upComp).append(Component.newline());
-        }
-        finalName = finalName.append(centerComp);
-        if (downComp != null) {
-            finalName = finalName.append(Component.newline()).append(downComp);
-        }
-
-        // Aplicar directamente al jugador (individual, sin usar Teams)
-        target.playerListName(finalName);
     }
 
     private void updateScoreboard(Player player) {
@@ -214,15 +200,11 @@ public class DisplayManager {
     public Component buildComponent(Player player, String text) {
         if (text == null || text.isEmpty()) return Component.empty();
 
-        // 1. Resolver Placeholders (PAPI)
         if (plugin.isPlaceholderApiPresent()) {
             text = PlaceholderAPI.setPlaceholders(player, text);
         }
 
-        // 2. Motor Legacy + Hex puro (SIN MiniMessage)
-        // Traducimos &#RRGGBB y #RRGGBB al formato &x&R&R&G&G&B&B
         String coloredText = translateHexToLegacy(text);
-
         return legacySerializer.deserialize(coloredText);
     }
 
@@ -231,7 +213,6 @@ public class DisplayManager {
         StringBuilder buffer = new StringBuilder(message.length() + 4 * 8);
         while (matcher.find()) {
             String group = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
-            // Formato estandar de Minecraft para Hex: &x&r&r&g&g&b&b
             matcher.appendReplacement(buffer, "&x&" + group.charAt(0) + "&" + group.charAt(1)
                     + "&" + group.charAt(2) + "&" + group.charAt(3)
                     + "&" + group.charAt(4) + "&" + group.charAt(5));
