@@ -27,7 +27,7 @@ public class DisplayManager {
 
     private final VeloTabPaperPlugin plugin;
 
-    // Serializador Legacy robusto para codigos & y Hex
+    // Serializador Legacy robusto para codigos & y Hex nativo de Minecraft
     private final LegacyComponentSerializer legacySerializer = LegacyComponentSerializer.builder()
             .character('&')
             .hexColors()
@@ -77,10 +77,10 @@ public class DisplayManager {
                 buildComponent(player, footerLines)
         );
 
-        applyGlobalSortingAndNames(player);
+        applyGlobalSorting(player);
     }
 
-    private void applyGlobalSortingAndNames(Player viewer) {
+    private void applyGlobalSorting(Player viewer) {
         Scoreboard board = viewer.getScoreboard();
         if (board == Bukkit.getScoreboardManager().getMainScoreboard()) {
             board = Bukkit.getScoreboardManager().getNewScoreboard();
@@ -94,8 +94,6 @@ public class DisplayManager {
             } catch (Exception ignored) {}
         }
 
-        boolean layeringEnabled = plugin.getConfig().getBoolean("TabList.Name_Layering.Enable", true);
-
         for (Player target : Bukkit.getOnlinePlayers()) {
             String priority = "99";
             String group = "default";
@@ -107,9 +105,8 @@ public class DisplayManager {
                 } catch (Exception ignored) {}
             }
 
-            // Team UNICO por jugador para que el prefix/suffix no se pise.
-            // Usamos prioridad + hash de UUID para mantener el orden pero ser únicos.
-            String teamName = SORTING_TEAM_PREFIX + priority + "_" + Integer.toHexString(target.getUniqueId().hashCode());
+            // Team de ordenación basado en prioridad
+            String teamName = SORTING_TEAM_PREFIX + priority + group;
             if (teamName.length() > 16) teamName = teamName.substring(0, 16);
 
             Team team = board.getTeam(teamName);
@@ -126,29 +123,10 @@ public class DisplayManager {
                 team.addEntry(target.getName());
             }
 
-            if (layeringEnabled) {
-                String up = plugin.getConfig().getString("TabList.Name_Layering.UpName", "");
-                String centerRaw = plugin.getConfig().getString("TabList.Name_Layering.CenterName", "{player}");
-                String down = plugin.getConfig().getString("TabList.Name_Layering.DownName", "");
-
-                // Prefix: UpName + Salto de línea
-                team.prefix(!up.isEmpty()
-                        ? buildComponent(target, up).append(Component.newline())
-                        : Component.empty());
-
-                // Suffix: Salto de línea + DownName
-                team.suffix(!down.isEmpty()
-                        ? Component.newline().append(buildComponent(target, down))
-                        : Component.empty());
-
-                // CenterName: Aplicado directamente al nombre en el Tab
-                String centerProcessed = centerRaw.replace("{player}", target.getName());
-                target.playerListName(buildComponent(target, centerProcessed));
-            } else {
-                team.prefix(Component.empty());
-                team.suffix(Component.empty());
-                target.playerListName(null);
-            }
+            // Name_Layering DESACTIVADO por ahora para evitar bugs de visualización
+            target.playerListName(null);
+            team.prefix(Component.empty());
+            team.suffix(Component.empty());
         }
     }
 
@@ -200,11 +178,19 @@ public class DisplayManager {
     public Component buildComponent(Player player, String text) {
         if (text == null || text.isEmpty()) return Component.empty();
 
+        // 1. Resolver Placeholders (PAPI)
         if (plugin.isPlaceholderApiPresent()) {
             text = PlaceholderAPI.setPlaceholders(player, text);
         }
 
+        // 2. Limpiar CUALQUIER tag de MiniMessage o HTML que el usuario haya puesto por error
+        // Solo queremos & y &#RRGGBB
+        text = text.replaceAll("<[^>]*>", "");
+
+        // 3. Traducir Hexadecimales al formato legacy que Adventure entiende nativamente
         String coloredText = translateHexToLegacy(text);
+
+        // 4. Deserializar usando el formato Legacy (&)
         return legacySerializer.deserialize(coloredText);
     }
 
@@ -213,6 +199,7 @@ public class DisplayManager {
         StringBuilder buffer = new StringBuilder(message.length() + 4 * 8);
         while (matcher.find()) {
             String group = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
+            // Formato estándar de Minecraft para Hex: &x&r&r&g&g&b&b
             matcher.appendReplacement(buffer, "&x&" + group.charAt(0) + "&" + group.charAt(1)
                     + "&" + group.charAt(2) + "&" + group.charAt(3)
                     + "&" + group.charAt(4) + "&" + group.charAt(5));
