@@ -27,7 +27,7 @@ public class IntegrityCheck {
 
     public static void printBranding(java.util.logging.Logger logger) {
         logger.info("------------------------------------------------");
-        logger.info(" VeloTab v1.5.8 - Official Release");
+        logger.info(" VeloTab v1.5.9 - Official Release");
         logger.info(" Created by: " + getAuthor());
         logger.info(" Website: " + getWebsite());
         logger.info(" This plugin is protected by copyright.");

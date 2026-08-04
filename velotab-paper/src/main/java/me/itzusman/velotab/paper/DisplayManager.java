@@ -131,26 +131,27 @@ public class DisplayManager {
         String center = plugin.getConfig().getString("TabList.Name_Layering.CenterName", "{player}");
         String down = plugin.getConfig().getString("TabList.Name_Layering.DownName", "");
 
-        Component finalName = null;
-        
-        if (!up.isEmpty()) {
-            finalName = buildComponent(target, up);
-        }
+        // Construir cada parte de forma independiente para evitar conflictos de estilo
+        Component upComp = !up.isEmpty() ? buildComponent(target, up) : null;
         
         String centerProcessed = center.replace("{player}", target.getName());
         Component centerComp = buildComponent(target, centerProcessed);
         
-        if (finalName == null) {
-            finalName = centerComp;
-        } else {
-            finalName = finalName.append(Component.newline()).append(centerComp);
+        Component downComp = !down.isEmpty() ? buildComponent(target, down) : null;
+
+        // Unir componentes con saltos de línea explícitos
+        Component finalName = Component.empty();
+        if (upComp != null) {
+            finalName = finalName.append(upComp).append(Component.newline());
         }
         
-        if (!down.isEmpty()) {
-            finalName = finalName.append(Component.newline()).append(buildComponent(target, down));
+        finalName = finalName.append(centerComp);
+        
+        if (downComp != null) {
+            finalName = finalName.append(Component.newline()).append(downComp);
         }
 
-        // Forzar la actualización en Paper
+        // Aplicar al TabList de Paper
         target.playerListName(finalName);
     }
 
@@ -200,11 +201,13 @@ public class DisplayManager {
     private Component buildComponent(Player player, String text) {
         if (text == null || text.isEmpty()) return Component.empty();
         
+        // Resolver Placeholders primero
         if (plugin.isPlaceholderApiPresent()) {
             text = PlaceholderAPI.setPlaceholders(player, text);
         }
 
-        // 1. Convertir Hex legacy (&#RRGGBB o #RRGGBB) a MiniMessage (<#RRGGBB>)
+        // 1. Normalizar Hexadecimales a formato MiniMessage
+        // Convierte &#FFFFFF o #FFFFFF a <#FFFFFF>
         String processed = text;
         Matcher matcher = hexPattern.matcher(processed);
         StringBuilder sb = new StringBuilder();
@@ -215,17 +218,17 @@ public class DisplayManager {
         matcher.appendTail(sb);
         processed = sb.toString();
 
-        // 2. Si contiene etiquetas MiniMessage o forzamos conversión de legacy
-        if (processed.contains("<") || processed.contains("&")) {
-            String mmText = legacyToMiniMessage(processed);
-            try {
-                return miniMessage.deserialize(mmText);
-            } catch (Exception e) {
-                return legacySerializer.deserialize(text);
-            }
-        }
+        // 2. Convertir códigos legacy (&) a etiquetas MiniMessage
+        // Esto permite mezclar &c y <gradient> sin que se rompan
+        processed = legacyToMiniMessage(processed);
 
-        return Component.text(processed);
+        // 3. Deserializar con MiniMessage (soporta gradientes, hex, hover, etc.)
+        try {
+            return miniMessage.deserialize(processed);
+        } catch (Exception e) {
+            // Fallback a Legacy si MiniMessage falla
+            return legacySerializer.deserialize(text);
+        }
     }
 
     private String legacyToMiniMessage(String text) {
