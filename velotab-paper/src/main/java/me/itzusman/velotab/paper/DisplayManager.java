@@ -28,7 +28,7 @@ public class DisplayManager {
 
     private final VeloTabPaperPlugin plugin;
 
-    // Serializador Legacy para codigos & y Hex
+    // Serializador Legacy para codigos & y Hex nativo de Adventure
     private final LegacyComponentSerializer legacySerializer = LegacyComponentSerializer.builder()
             .character('&')
             .hexColors()
@@ -39,7 +39,7 @@ public class DisplayManager {
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
 
     // Patron para detectar colores hexadecimales (&#RRGGBB o #RRGGBB)
-    private final Pattern hexPattern = Pattern.compile("&#([A-Fa-f0-9]{6})|(?<![#A-Fa-f0-9])#([A-Fa-f0-9]{6})");
+    private final Pattern hexPattern = Pattern.compile("&#([A-Fa-f0-9]{6})|#([A-Fa-f0-9]{6})");
 
     private BukkitRunnable updateTask;
     private static final String SORTING_TEAM_PREFIX = "vt_s_";
@@ -101,7 +101,7 @@ public class DisplayManager {
         boolean layeringEnabled = plugin.getConfig().getBoolean("TabList.Name_Layering.Enable", true);
 
         for (Player target : Bukkit.getOnlinePlayers()) {
-            // 1. Manejar Sorting (Teams invisibles solo para orden)
+            // Sorting
             String sortingTeamName = buildSortingTeamName(lp, target);
             Team sortTeam = board.getTeam(sortingTeamName);
             if (sortTeam == null) {
@@ -109,7 +109,6 @@ public class DisplayManager {
             }
 
             if (!sortTeam.hasEntry(target.getName())) {
-                // Limpiar otros teams de sorting previos
                 for (Team t : board.getTeams()) {
                     if (t.getName().startsWith(SORTING_TEAM_PREFIX) && t.hasEntry(target.getName())) {
                         t.removeEntry(target.getName());
@@ -118,7 +117,7 @@ public class DisplayManager {
                 sortTeam.addEntry(target.getName());
             }
 
-            // 2. Manejar Name Layering (TabList Display Name)
+            // Name Layering (TabList Display Name)
             if (layeringEnabled) {
                 updatePlayerTabName(target);
             } else {
@@ -153,7 +152,6 @@ public class DisplayManager {
         Component centerComp = buildComponent(target, centerProcessed);
         Component downComp = !downRaw.isEmpty() ? buildComponent(target, downRaw) : null;
 
-        // Construir el nombre final con saltos de linea
         Component finalName = Component.empty();
         if (upComp != null) {
             finalName = finalName.append(upComp).append(Component.newline());
@@ -214,44 +212,44 @@ public class DisplayManager {
     public Component buildComponent(Player player, String text) {
         if (text == null || text.isEmpty()) return Component.empty();
 
-        // 1. Resolver Placeholders (PAPI)
+        // 1. Placeholders
         if (plugin.isPlaceholderApiPresent()) {
             text = PlaceholderAPI.setPlaceholders(player, text);
         }
 
-        // 2. Normalizar colores Hex (#RRGGBB / &#RRGGBB) al formato MiniMessage <color:#RRGGBB>
-        // Esto permite que MiniMessage maneje los colores hex de forma nativa.
-        text = normalizeHexToMiniMessage(text);
-
-        // 3. Si contiene tags de MiniMessage (<...>), procesamos con MiniMessage
-        // Pero primero convertimos los codigos legacy & a tags de MiniMessage para que sea hibrido.
+        // 2. Si tiene tags de MiniMessage (<...>), usamos MiniMessage directamente.
+        // MiniMessage es capaz de manejar gradientes y tags avanzados.
         if (text.contains("<") && text.contains(">")) {
+            // Convertimos los & legacy a tags de MiniMessage para que sea hibrido.
             String mmText = legacyToMiniMessage(text);
             try {
                 return miniMessage.deserialize(mmText);
             } catch (Exception e) {
-                // Si falla el parseo de MiniMessage, devolvemos el texto plano coloreado con legacy
-                return legacySerializer.deserialize(translateHexToLegacyFormat(text));
+                // Fallback a legacy si MiniMessage falla (por tags mal escritos como <gradient::>)
             }
         }
 
-        // 4. Si no tiene tags, usamos el serializador Legacy
-        return legacySerializer.deserialize(translateHexToLegacyFormat(text));
+        // 3. Soporte Legacy + Hex
+        // Traducimos &#RRGGBB y #RRGGBB al formato &x&R&R&G&G&B&B
+        String legacyText = translateHexToLegacy(text);
+        return legacySerializer.deserialize(legacyText);
     }
 
-    private String normalizeHexToMiniMessage(String text) {
-        Matcher matcher = hexPattern.matcher(text);
+    private String legacyToMiniMessage(String text) {
+        // Convertir codigos legacy & a tags MiniMessage
+        // Y convertir hex #RRGGBB a <color:#RRGGBB>
+        String result = text;
+        
+        Matcher matcher = hexPattern.matcher(result);
         StringBuilder sb = new StringBuilder();
         while (matcher.find()) {
             String hex = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
             matcher.appendReplacement(sb, "<color:#" + hex + ">");
         }
         matcher.appendTail(sb);
-        return sb.toString();
-    }
+        result = sb.toString();
 
-    private String legacyToMiniMessage(String text) {
-        return text
+        return result
                 .replace("&0", "<black>").replace("&1", "<dark_blue>").replace("&2", "<dark_green>")
                 .replace("&3", "<dark_aqua>").replace("&4", "<dark_red>").replace("&5", "<dark_purple>")
                 .replace("&6", "<gold>").replace("&7", "<gray>").replace("&8", "<dark_gray>")
@@ -265,7 +263,7 @@ public class DisplayManager {
                 .replace("&O", "<italic>").replace("&R", "<reset>");
     }
 
-    private String translateHexToLegacyFormat(String message) {
+    private String translateHexToLegacy(String message) {
         Matcher matcher = hexPattern.matcher(message);
         StringBuilder buffer = new StringBuilder(message.length() + 4 * 8);
         while (matcher.find()) {
