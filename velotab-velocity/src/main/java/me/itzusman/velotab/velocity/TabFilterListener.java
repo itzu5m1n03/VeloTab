@@ -79,7 +79,7 @@ public class TabFilterListener {
 
             if (longVersion != null) {
                 String guessedPermission = longVersion.replace(":", ".");
-                if (!player.hasPermission(guessedPermission) && !player.hasPermission(longVersion) && !player.hasPermission("velotab.admin")) {
+                if (!player.hasPermission(guessedPermission) && !player.hasPermission(longVersion)) {
                     removeChild(root, child.getName());
                 }
             }

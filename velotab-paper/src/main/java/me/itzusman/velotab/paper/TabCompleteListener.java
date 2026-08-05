@@ -56,6 +56,7 @@ public class TabCompleteListener implements Listener {
             Command cmd = commandMap.getCommand(raw);
             if (cmd == null) cmd = commandMap.getCommand(base);
 
+            // Solo eliminamos del autocompletado si el jugador no tiene permiso real para el comando.
             if (!hasPermission(player, cmd, raw, base)) {
                 iterator.remove();
             }
@@ -80,37 +81,15 @@ public class TabCompleteListener implements Listener {
         Command cmd = Bukkit.getCommandMap().getCommand(raw);
         if (cmd == null) cmd = Bukkit.getCommandMap().getCommand(base);
 
+        // Ocultar del TAB si no tiene permiso.
         if (!hasPermission(player, cmd, raw, base)) {
             event.setCancelled(true);
         }
     }
 
-    @EventHandler
-    public void onCommandPreProcess(PlayerCommandPreprocessEvent event) {
-        if (!plugin.getConfig().getBoolean("Tab_Hide.enable", true)) return;
-        
-        Player player = event.getPlayer();
-        if (player.hasPermission("velotab.bypass")) return;
-
-        String message = event.getMessage().substring(1);
-        String raw = message.split(" ")[0];
-        String base = stripPrefix(raw).toLowerCase();
-
-        Set<String> forceHide = getSet("Tab_Hide.force_hide");
-        if (forceHide.contains(base)) {
-            event.setCancelled(true);
-            player.sendMessage(plugin.getLangMessage("command-blocked"));
-            return;
-        }
-
-        Command cmd = Bukkit.getCommandMap().getCommand(raw);
-        if (cmd == null) cmd = Bukkit.getCommandMap().getCommand(base);
-
-        if (!hasPermission(player, cmd, raw, base)) {
-            event.setCancelled(true);
-            player.sendMessage(plugin.getLangMessage("no-permission"));
-        }
-    }
+    // Eliminamos onCommandPreProcess porque el plugin NO debe bloquear comandos,
+    // solo esconderlos del autocompletado. Los permisos del comando original
+    // ya se encargan de bloquear la ejecución.
 
     private boolean hasPermission(Player player, Command cmd, String raw, String base) {
         if (cmd != null) {
