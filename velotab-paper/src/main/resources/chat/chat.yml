@@ -1,0 +1,18 @@
+# VeloTab - Chat Settings
+Enable: true
+
+# Formato por defecto
+Default_Format: '&8[%luckperms_prefix%&8] &7{player} &8» &7{message}'
+
+# Menciones (@Jugador)
+Mentions:
+  Enable: true
+  Color: "&e&l"
+  Sound: "ENTITY_EXPERIENCE_ORB_PICKUP"
+  Actionbar_Notify: "&f¡&e%player_name% &fte ha mencionado!"
+
+# Protección (AntiSpam, etc.)
+Protection:
+  AntiSpam_Cooldown: 3
+  Caps_Percentage: 70
+  Blocked_Words: ["mierda", "pendejo"]

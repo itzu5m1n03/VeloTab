@@ -1,0 +1,14 @@
+# VeloTab - TabList Separators
+# Crea categorías visuales en la lista de jugadores.
+
+enable: false
+
+categories:
+  staff:
+    display: "&c&l--- STAFF ---"
+    groups: ["admin", "mod"]
+    priority: "00"
+  players:
+    display: "&a&l--- JUGADORES ---"
+    groups: ["vip", "user", "default"]
+    priority: "10"

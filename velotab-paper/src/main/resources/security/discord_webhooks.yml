@@ -1,0 +1,16 @@
+# VeloTab - Discord Integration
+# Configura aquí tus webhooks de Discord.
+
+chat_sync:
+  enable: false
+  webhook_url: "TU_WEBHOOK_AQUI"
+  username: "%player_name%"
+  avatar_url: "https://minotar.net/avatar/%player_name%/128.png"
+
+alerts:
+  enable: false
+  webhook_url: "TU_WEBHOOK_AQUI"
+  events:
+    security_bypass_attempt: true
+    server_start_stop: true
+    admin_login: true

@@ -1,0 +1,27 @@
+# VeloTab - TabList Per-Group Settings
+# Los jugadores verán el primer grupo para el que tengan permiso.
+# Permiso: velotab.tablist.group.<nombre>
+
+groups:
+  admin:
+    Header:
+      - "&c&lMODO ADMINISTRADOR"
+      - "&7Estás viendo el TabList de Staff"
+    Footer:
+      - "&7TPS: &c%server_tps% &8| &7Memoria: &c%server_ram_used%MB"
+  
+  vip:
+    Header:
+      - "&6&l★ RANGO VIP ★"
+      - "&e¡Gracias por apoyar al servidor!"
+    Footer:
+      - "&eAcceso prioritario activado"
+
+# Ordenación de jugadores en la lista
+sorting:
+  fundador: "01"
+  admin: "02"
+  mod: "03"
+  vip: "04"
+  user: "05"
+  default: "99"

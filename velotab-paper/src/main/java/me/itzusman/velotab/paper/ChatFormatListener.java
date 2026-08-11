@@ -16,6 +16,8 @@ import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.cacheddata.CachedMetaData;
 import net.luckperms.api.model.user.User;
 import me.clip.placeholderapi.PlaceholderAPI;
+import org.bukkit.Bukkit;
+import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
@@ -38,7 +40,6 @@ public class ChatFormatListener implements Listener {
             .useUnusualXRepeatedCharacterHexFormat()
             .build();
 
-    // Cache para AntiSpam y Repeat Blocker
     private final Map<UUID, Long> lastMessageTime = new HashMap<>();
     private final Map<UUID, String> lastMessageContent = new HashMap<>();
 
@@ -49,19 +50,27 @@ public class ChatFormatListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onChat(AsyncChatEvent event) {
-        FileConfiguration config = plugin.getCustomConfig("chat");
-        if (!config.getBoolean("Enable", true)) return;
+        FileConfiguration chatConfig = plugin.getConfigLoader().get("chat/chat");
+        if (!chatConfig.getBoolean("Enable", true)) return;
 
         Player player = event.getPlayer();
         String rawMessage = PlainTextComponentSerializer.plainText().serialize(event.message());
 
-        // --- PROTECCIÓN DE CHAT ---
+        // 1. Protección de Chat
         if (handleChatProtection(player, rawMessage, event)) return;
 
-        // --- FORMATO DE CHAT ---
-        String format = resolveFormat(player, config);
+        // 2. Menciones
+        handleMentions(player, rawMessage);
+
+        // 3. Discord Webhook Sync
+        handleDiscordSync(player, rawMessage);
+
+        // 4. Formato de Chat con Soporte para Tags
+        String format = chatConfig.getString("Default_Format", "&8[%luckperms_prefix%&8] &7{player} &8» &7{message}");
+        
         String prefixLP = "";
         String suffixLP = "";
+        String playerTag = getPlayerTag(player);
 
         if (plugin.isLuckPermsPresent()) {
             try {
@@ -77,7 +86,8 @@ public class ChatFormatListener implements Listener {
 
         String baseFormat = format
                 .replace("%luckperms_prefix%", prefixLP)
-                .replace("%luckperms_suffix%", suffixLP);
+                .replace("%luckperms_suffix%", suffixLP)
+                .replace("{tag}", playerTag);
 
         if (placeholderApiPresent) {
             baseFormat = PlaceholderAPI.setPlaceholders(player, baseFormat);
@@ -89,7 +99,7 @@ public class ChatFormatListener implements Listener {
         final Component prefixComp = formatComponent(player, parts[0]);
         
         Component nameComp = Component.text(player.getName());
-        String hoverText = config.getString("Format.Player_Hover", "");
+        String hoverText = chatConfig.getString("Format.Player_Hover", "");
         if (!hoverText.isEmpty()) {
             nameComp = nameComp.hoverEvent(HoverEvent.showText(formatComponent(player, hoverText)));
         }
@@ -106,60 +116,77 @@ public class ChatFormatListener implements Listener {
         );
     }
 
+    private void handleMentions(Player sender, String message) {
+        FileConfiguration config = plugin.getConfigLoader().get("chat/chat");
+        if (!config.getBoolean("Mentions.Enable", true)) return;
+
+        String mentionColor = config.getString("Mentions.Color", "&e&l");
+        String soundStr = config.getString("Mentions.Sound", "ENTITY_EXPERIENCE_ORB_PICKUP");
+        String notify = config.getString("Mentions.Actionbar_Notify", "&f¡&e%player_name% &fte ha mencionado!");
+
+        for (Player target : Bukkit.getOnlinePlayers()) {
+            if (message.contains("@" + target.getName())) {
+                try {
+                    target.playSound(target.getLocation(), Sound.valueOf(soundStr), 1.0f, 1.0f);
+                    target.sendActionBar(plugin.getDisplayManager().buildComponent(sender, notify));
+                } catch (Exception ignored) {}
+            }
+        }
+    }
+
+    private void handleDiscordSync(Player player, String message) {
+        FileConfiguration config = plugin.getConfigLoader().get("security/discord_webhooks");
+        if (config.getBoolean("chat_sync.enable", false)) {
+            String url = config.getString("chat_sync.webhook_url");
+            String username = config.getString("chat_sync.username", "%player_name%");
+            String avatar = config.getString("chat_sync.avatar_url", "https://minotar.net/avatar/%player_name%/128.png");
+            
+            username = PlaceholderAPI.setPlaceholders(player, username);
+            avatar = PlaceholderAPI.setPlaceholders(player, avatar);
+            
+            DiscordWebhookManager.sendWebhook(url, username, avatar, message);
+        }
+    }
+
+    private String getPlayerTag(Player player) {
+        FileConfiguration config = plugin.getConfigLoader().get("chat/tags");
+        if (!config.getBoolean("enable", false)) return "";
+
+        ConfigurationSection tags = config.getConfigurationSection("tags");
+        if (tags != null) {
+            for (String key : tags.getKeys(false)) {
+                if (player.hasPermission("velotab.tag." + key)) {
+                    return tags.getString(key + ".display", "");
+                }
+            }
+        }
+        return "";
+    }
+
     private boolean handleChatProtection(Player player, String message, AsyncChatEvent event) {
-        FileConfiguration config = plugin.getCustomConfig("chat");
+        FileConfiguration config = plugin.getConfigLoader().get("chat/chat");
         UUID uuid = player.getUniqueId();
 
-        // 1. AntiSpam
-        if (config.getBoolean("Protection.AntiSpam.Enable", true) && !player.hasPermission(config.getString("Protection.AntiSpam.Bypass_Permission"))) {
+        // AntiSpam
+        if (config.getBoolean("Protection.AntiSpam.Enable", true) && !player.hasPermission("velotab.chat.bypass.spam")) {
             long now = System.currentTimeMillis();
             long last = lastMessageTime.getOrDefault(uuid, 0L);
-            int cooldown = config.getInt("Protection.AntiSpam.Cooldown", 3) * 1000;
+            int cooldown = config.getInt("Protection.AntiSpam_Cooldown", 3) * 1000;
             if (now - last < cooldown) {
                 double remaining = (cooldown - (now - last)) / 1000.0;
-                player.sendMessage(ColorUtil.colorize(config.getString("Protection.AntiSpam.Message").replace("{time}", String.format("%.1f", remaining))));
+                player.sendMessage(ColorUtil.colorize("&c¡Espera " + String.format("%.1f", remaining) + "s!"));
                 event.setCancelled(true);
                 return true;
             }
             lastMessageTime.put(uuid, now);
         }
 
-        // 2. Repeat Blocker
-        if (config.getBoolean("Protection.Repeat_Blocker.Enable", true) && !player.hasPermission(config.getString("Protection.Repeat_Blocker.Bypass_Permission"))) {
-            String lastMsg = lastMessageContent.get(uuid);
-            if (message.equalsIgnoreCase(lastMsg)) {
-                player.sendMessage(ColorUtil.colorize(config.getString("Protection.Repeat_Blocker.Message")));
+        // AntiSwear
+        for (String word : config.getStringList("Protection.Blocked_Words")) {
+            if (message.toLowerCase().contains(word.toLowerCase())) {
+                player.sendMessage(ColorUtil.colorize("&c¡Mensaje bloqueado por lenguaje inapropiado!"));
                 event.setCancelled(true);
                 return true;
-            }
-            lastMessageContent.put(uuid, message);
-        }
-
-        // 3. AntiSwear
-        if (config.getBoolean("Protection.AntiSwear.Enable", true) && !player.hasPermission(config.getString("Protection.AntiSwear.Bypass_Permission"))) {
-            for (String word : config.getStringList("Protection.AntiSwear.Blocked_Words")) {
-                if (Pattern.compile("(?i)\\b" + Pattern.quote(word) + "\\b").matcher(message).find()) {
-                    player.sendMessage(ColorUtil.colorize(config.getString("Protection.AntiSwear.Message")));
-                    event.setCancelled(true);
-                    return true;
-                }
-            }
-        }
-
-        // 4. Caps Blocker
-        if (config.getBoolean("Protection.Caps_Blocker.Enable", true) && !player.hasPermission(config.getString("Protection.Caps_Blocker.Bypass_Permission"))) {
-            int minLength = config.getInt("Protection.Caps_Blocker.Min_Length", 5);
-            if (message.length() >= minLength) {
-                int caps = 0;
-                for (char c : message.toCharArray()) {
-                    if (Character.isUpperCase(c)) caps++;
-                }
-                int percentage = (caps * 100) / message.length();
-                if (percentage > config.getInt("Protection.Caps_Blocker.Max_Percentage", 70)) {
-                    player.sendMessage(ColorUtil.colorize(config.getString("Protection.Caps_Blocker.Message")));
-                    event.setCancelled(true);
-                    return true;
-                }
             }
         }
 
@@ -167,11 +194,7 @@ public class ChatFormatListener implements Listener {
     }
 
     private Component formatComponent(Player player, String text) {
-        if (placeholderApiPresent) {
-            text = PlaceholderAPI.setPlaceholders(player, text);
-        }
-        String coloredText = ColorUtil.colorize(text);
-        return legacySerializer.deserialize(coloredText);
+        return plugin.getDisplayManager().buildComponent(player, text);
     }
 
     private String resolveFormat(Player player, FileConfiguration config) {

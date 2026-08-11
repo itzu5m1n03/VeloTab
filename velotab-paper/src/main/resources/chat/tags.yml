@@ -1,0 +1,13 @@
+# VeloTab - Player Tags
+# Permite a los jugadores elegir un prefijo visual extra.
+# Permiso: velotab.tag.<nombre>
+
+enable: false
+
+tags:
+  pro:
+    display: "&8[&bPRO&8] "
+  builder:
+    display: "&8[&aBUILDER&8] "
+  streamer:
+    display: "&8[&dLIVE&8] "

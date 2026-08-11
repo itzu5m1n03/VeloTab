@@ -22,7 +22,7 @@ public class ActionBarManager {
 
     public void start() {
         stop();
-        FileConfiguration config = plugin.getCustomConfig("actionbar");
+        FileConfiguration config = plugin.getConfigLoader().get("actionbar/actionbar");
         if (!config.getBoolean("Enable", false)) return;
 
         int interval = config.getInt("Update_Interval", 20);

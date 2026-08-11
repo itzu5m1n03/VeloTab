@@ -13,6 +13,7 @@ import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.model.user.User;
 import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Bukkit;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -42,14 +43,18 @@ public class DisplayManager {
     private static final String SORTING_TEAM_PREFIX = "vt_s_";
     private final Map<UUID, Boolean> scoreboardVisibility = new HashMap<>();
     private final Pattern animPattern = Pattern.compile("\\{anim:([^}]+)\\}");
+    
+    private final ScoreboardPageManager pageManager;
 
     public DisplayManager(VeloTabPaperPlugin plugin) {
         this.plugin = plugin;
+        this.pageManager = new ScoreboardPageManager(plugin);
+        this.pageManager.load();
     }
 
     public void start() {
         stop();
-        FileConfiguration tabConfig = plugin.getCustomConfig("tablist");
+        FileConfiguration tabConfig = plugin.getConfigLoader().get("tablist/tablist");
         int interval = tabConfig.getInt("Update_Interval", 20);
         updateTask = new BukkitRunnable() {
             @Override
@@ -76,18 +81,33 @@ public class DisplayManager {
         UUID uuid = player.getUniqueId();
         boolean current = scoreboardVisibility.getOrDefault(uuid, true);
         scoreboardVisibility.put(uuid, !current);
-        
-        if (current) {
-            player.getScoreboard().clearSlot(DisplaySlot.SIDEBAR);
-        }
+        if (current) player.getScoreboard().clearSlot(DisplaySlot.SIDEBAR);
     }
 
     private void updateTabList(Player player) {
-        FileConfiguration tabConfig = plugin.getCustomConfig("tablist");
+        FileConfiguration tabConfig = plugin.getConfigLoader().get("tablist/tablist");
         if (!tabConfig.getBoolean("Enable", true)) return;
 
-        List<String> headerLines = tabConfig.getStringList("Header");
-        List<String> footerLines = tabConfig.getStringList("Footer");
+        // Soporte para Grupos de TabList
+        ConfigurationSection groups = plugin.getConfigLoader().get("tablist/groups").getConfigurationSection("groups");
+        String headerKey = "Default.Header";
+        String footerKey = "Default.Footer";
+        
+        if (groups != null) {
+            for (String group : groups.getKeys(false)) {
+                if (player.hasPermission("velotab.tablist.group." + group)) {
+                    headerKey = "groups." + group + ".Header";
+                    footerKey = "groups." + group + ".Footer";
+                    break;
+                }
+            }
+        }
+
+        List<String> headerLines = plugin.getConfigLoader().get("tablist/groups").getStringList(headerKey);
+        if (headerLines.isEmpty()) headerLines = tabConfig.getStringList("Default.Header");
+        
+        List<String> footerLines = plugin.getConfigLoader().get("tablist/groups").getStringList(footerKey);
+        if (footerLines.isEmpty()) footerLines = tabConfig.getStringList("Default.Footer");
 
         player.sendPlayerListHeaderAndFooter(
                 buildComponent(player, headerLines),
@@ -98,7 +118,10 @@ public class DisplayManager {
     }
 
     private void applyGlobalSorting(Player viewer) {
-        FileConfiguration tabConfig = plugin.getCustomConfig("tablist");
+        FileConfiguration tabConfig = plugin.getConfigLoader().get("tablist/tablist");
+        FileConfiguration groupsConfig = plugin.getConfigLoader().get("tablist/groups");
+        FileConfiguration separatorsConfig = plugin.getConfigLoader().get("tablist/separators");
+        
         Scoreboard board = viewer.getScoreboard();
         if (board == Bukkit.getScoreboardManager().getMainScoreboard()) {
             board = Bukkit.getScoreboardManager().getNewScoreboard();
@@ -124,11 +147,24 @@ public class DisplayManager {
                 try {
                     User user = lp.getUserManager().getUser(target.getUniqueId());
                     group = (user != null) ? user.getPrimaryGroup() : "default";
-                    priority = tabConfig.getString("Sorting.Groups." + group, "99");
+                    priority = groupsConfig.getString("sorting." + group, "99");
                 } catch (Exception ignored) {}
             }
 
+            // Soporte para Separadores
             String teamName = SORTING_TEAM_PREFIX + priority + group;
+            if (separatorsConfig.getBoolean("enable", false)) {
+                ConfigurationSection cats = separatorsConfig.getConfigurationSection("categories");
+                if (cats != null) {
+                    for (String cat : cats.getKeys(false)) {
+                        if (cats.getStringList(cat + ".groups").contains(group)) {
+                            teamName = SORTING_TEAM_PREFIX + cats.getString(cat + ".priority") + "_" + cat + "_" + priority;
+                            break;
+                        }
+                    }
+                }
+            }
+
             if (teamName.length() > 16) teamName = teamName.substring(0, 16);
 
             Team team = board.getTeam(teamName);
@@ -147,7 +183,6 @@ public class DisplayManager {
             if (plugin.getHookManager().isAFK(target)) {
                 displayName = tabConfig.getString("AFK_Format", "&7[AFK] ") + displayName;
             }
-            
             if (plugin.getHookManager().isBedrock(target)) {
                 displayName = tabConfig.getString("Bedrock_Prefix", "&7[BE] ") + displayName;
             }
@@ -157,13 +192,12 @@ public class DisplayManager {
     }
 
     private void updateTabObjectives(Player player) {
-        FileConfiguration tabConfig = plugin.getCustomConfig("tablist");
+        FileConfiguration tabConfig = plugin.getConfigLoader().get("tablist/tablist");
         String type = tabConfig.getString("Objective.Type", "NONE").toUpperCase();
         if (type.equals("NONE")) return;
 
         Scoreboard board = player.getScoreboard();
         Objective obj = board.getObjective("vt_tab_obj");
-        
         if (obj == null) {
             String title = type.equals("HEALTH") ? "§c❤" : "ms";
             obj = board.registerNewObjective("vt_tab_obj", "dummy", title);
@@ -172,17 +206,14 @@ public class DisplayManager {
 
         for (Player target : Bukkit.getOnlinePlayers()) {
             int value = 0;
-            if (type.equals("HEALTH")) {
-                value = (int) target.getHealth();
-            } else if (type.equals("PING")) {
-                value = target.getPing();
-            }
+            if (type.equals("HEALTH")) value = (int) target.getHealth();
+            else if (type.equals("PING")) value = target.getPing();
             obj.getScore(target.getName()).setScore(value);
         }
     }
 
     private void updateScoreboard(Player player) {
-        FileConfiguration sbConfig = plugin.getCustomConfig("scoreboard");
+        FileConfiguration sbConfig = plugin.getConfigLoader().get("scoreboard/scoreboard");
         if (!sbConfig.getBoolean("Enable", true)) return;
         if (!scoreboardVisibility.getOrDefault(player.getUniqueId(), true)) return;
 
@@ -192,17 +223,18 @@ public class DisplayManager {
             player.setScoreboard(board);
         }
 
+        // Obtener página actual (Rotativa)
+        ScoreboardPageManager.ScoreboardPage page = pageManager.getCurrentPage(currentTicks);
+
         Objective obj = board.getObjective("velotab_sb");
         if (obj == null) {
-            String title = sbConfig.getString("Title", "&bVeloTab");
-            obj = board.registerNewObjective("velotab_sb", "dummy", buildComponent(player, title));
+            obj = board.registerNewObjective("velotab_sb", "dummy", buildComponent(player, page.getTitle()));
             obj.setDisplaySlot(DisplaySlot.SIDEBAR);
         } else {
-            String title = sbConfig.getString("Title", "&bVeloTab");
-            obj.displayName(buildComponent(player, title));
+            obj.displayName(buildComponent(player, page.getTitle()));
         }
 
-        List<String> lines = sbConfig.getStringList("Lines");
+        List<String> lines = page.getLines();
         int size = lines.size();
 
         for (int i = 0; i < size; i++) {
@@ -216,6 +248,16 @@ public class DisplayManager {
                 obj.getScore(entry).setScore(size - i);
             }
             team.prefix(buildComponent(player, line));
+        }
+        
+        // Limpiar lineas sobrantes si la nueva pagina es mas corta
+        for (int i = size; i < 15; i++) {
+            String teamName = "sb_line_" + i;
+            Team team = board.getTeam(teamName);
+            if (team != null) {
+                for (String entry : team.getEntries()) board.resetScores(entry);
+                team.unregister();
+            }
         }
     }
 
@@ -231,9 +273,7 @@ public class DisplayManager {
     public Component buildComponent(Player player, String text) {
         if (text == null || text.isEmpty()) return Component.empty();
         text = processAnimations(text);
-        if (plugin.isPlaceholderApiPresent()) {
-            text = PlaceholderAPI.setPlaceholders(player, text);
-        }
+        if (plugin.isPlaceholderApiPresent()) text = PlaceholderAPI.setPlaceholders(player, text);
         String coloredText = ColorUtil.colorize(text);
         return legacySerializer.deserialize(coloredText);
     }
@@ -248,5 +288,9 @@ public class DisplayManager {
         }
         matcher.appendTail(sb);
         return sb.toString();
+    }
+    
+    public void reloadPages() {
+        pageManager.load();
     }
 }

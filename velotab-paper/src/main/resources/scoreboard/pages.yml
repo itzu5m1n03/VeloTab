@@ -1,0 +1,35 @@
+# VeloTab - Scoreboard Pages
+# Define aquí las diferentes vistas del Scoreboard.
+
+pages:
+  stats:
+    title: "{anim:server_name} &8- &fStats"
+    lines:
+      - "&8&m-------------------"
+      - "&fNombre: &b%player_name%"
+      - "&fRango: &b%luckperms_prefix%"
+      - ""
+      - "&fAsesinatos: &b%statistic_player_kills%"
+      - "&fMuertes: &b%statistic_deaths%"
+      - "&8&m-------------------"
+  
+  economy:
+    title: "{anim:server_name} &8- &fEconomía"
+    lines:
+      - "&8&m-------------------"
+      - "&fDinero: &a$%vault_eco_balance_fixed%"
+      - "&fPuntos: &e%playerpoints_points%"
+      - ""
+      - "&fTienda: &dtienda.lobomax.xyz"
+      - "&8&m-------------------"
+
+  server:
+    title: "{anim:server_name} &8- &fServer"
+    lines:
+      - "&8&m-------------------"
+      - "&fTPS: &a%server_tps%"
+      - "&fOnline: &b%server_online%"
+      - "&fPing: &e%player_ping%ms"
+      - ""
+      - "&b  lobomax.xyz"
+      - "&8&m-------------------"

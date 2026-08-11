@@ -1,0 +1,16 @@
+# VeloTab - Auto Announcements
+enable: true
+interval: 6000 # Ticks (5 minutos)
+random: true
+
+messages:
+  web:
+    - "&8&m---------------------------------------"
+    - "  &b&l¡Visita nuestra tienda!"
+    - "  &7Apoya al servidor en &dtienda.lobomax.xyz"
+    - "&8&m---------------------------------------"
+  discord:
+    - "&8&m---------------------------------------"
+    - "  &9&l¡Únete a nuestro Discord!"
+    - "  &7Entra en &fdiscord.gg/lobomax"
+    - "&8&m---------------------------------------"

@@ -1,0 +1,6 @@
+# VeloTab - Security Settings
+Command_Hiding:
+  Enable: true
+  Bypass_Permission: "velotab.bypass"
+  Force_Hide: ["pl", "plugins", "ver", "version"]
+  Always_Show: ["help", "spawn", "msg"]

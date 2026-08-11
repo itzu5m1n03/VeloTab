@@ -1,0 +1,7 @@
+# VeloTab - Scoreboard Settings
+Enable: true
+Update_Interval: 20
+
+# ¿Rotar automáticamente entre las páginas definidas en pages.yml?
+Rotate_Pages: true
+Rotation_Interval: 200 # Ticks (10 segundos)

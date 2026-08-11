@@ -14,22 +14,15 @@ import me.itzusman.velotab.common.UpdateChecker;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import me.clip.placeholderapi.PlaceholderAPI;
 
-import java.io.File;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-
 public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessageListener {
 
+    private ConfigLoader configLoader;
     private TabCompleteListener tabCompleteListener;
     private ChatFormatListener chatFormatListener;
     private DisplayManager displayManager;
@@ -41,13 +34,11 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
 
     private boolean placeholderApiPresent;
     private boolean luckPermsPresent;
-    
-    private final Map<String, FileConfiguration> configs = new HashMap<>();
 
     @Override
     public void onEnable() {
-        // Cargar todas las configuraciones
-        loadAllConfigs();
+        this.configLoader = new ConfigLoader(this);
+        this.configLoader.loadAll();
 
         placeholderApiPresent = Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null;
         luckPermsPresent = Bukkit.getPluginManager().getPlugin("LuckPerms") != null;
@@ -61,18 +52,25 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
         this.hookManager = new HookManager(this);
         this.hookManager.init();
 
+        // Registrar Animaciones
+        loadAnimations();
+
         this.displayManager = new DisplayManager(this);
         this.displayManager.start();
 
-        this.bossBarManager = new BossBarManager(this);
-        this.bossBarManager.start();
+        if (configLoader.isModuleEnabled("bossbar")) {
+            this.bossBarManager = new BossBarManager(this);
+            this.bossBarManager.start();
+        }
 
-        this.actionBarManager = new ActionBarManager(this);
-        this.actionBarManager.start();
+        if (configLoader.isModuleEnabled("actionbar")) {
+            this.actionBarManager = new ActionBarManager(this);
+            this.actionBarManager.start();
+        }
 
         registerEvents();
 
-        if (getCustomConfig("tablist").getBoolean("network_sync.enable", true)) {
+        if (getConfig().getBoolean("network_sync.enable", true)) {
             getServer().getMessenger().registerIncomingPluginChannel(this, Constants.SYNC_CHANNEL, this);
             getServer().getMessenger().registerOutgoingPluginChannel(this, Constants.SYNC_CHANNEL);
         }
@@ -88,6 +86,17 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
         IntegrityCheck.printBranding(getLogger());
     }
 
+    private void loadAnimations() {
+        FileConfiguration animConfig = configLoader.get("animations/animations");
+        if (animConfig.contains("animations")) {
+            for (String key : animConfig.getConfigurationSection("animations").getKeys(false)) {
+                int interval = animConfig.getInt("animations." + key + ".interval", 20);
+                java.util.List<String> frames = animConfig.getStringList("animations." + key + ".frames");
+                animationManager.registerAnimation(key, frames, interval);
+            }
+        }
+    }
+
     @Override
     public void onDisable() {
         if (displayManager != null) displayManager.stop();
@@ -101,44 +110,9 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
         getLogger().info("VeloTab se ha deshabilitado correctamente.");
     }
 
-    public void loadAllConfigs() {
-        configs.clear();
-        String[] configFiles = {"tablist", "scoreboard", "bossbar", "actionbar", "chat", "security", "animations", "lang/es", "lang/en"};
-        for (String name : configFiles) {
-            loadCustomConfig(name);
-        }
-        
-        // Registrar animaciones si el manager ya existe
-        if (animationManager != null) {
-            animationManager.clear();
-            FileConfiguration animConfig = getCustomConfig("animations");
-            if (animConfig.contains("animations")) {
-                for (String key : animConfig.getConfigurationSection("animations").getKeys(false)) {
-                    int interval = animConfig.getInt("animations." + key + ".interval", 20);
-                    java.util.List<String> frames = animConfig.getStringList("animations." + key + ".frames");
-                    animationManager.registerAnimation(key, frames, interval);
-                }
-            }
-        }
-    }
-
-    private void loadCustomConfig(String name) {
-        File file = new File(getDataFolder(), name + ".yml");
-        if (!file.exists()) {
-            saveResource(name + ".yml", false);
-        }
-        configs.put(name.contains("/") ? name.substring(name.lastIndexOf("/") + 1) : name, 
-                    YamlConfiguration.loadConfiguration(file));
-    }
-
-    public FileConfiguration getCustomConfig(String name) {
-        return configs.getOrDefault(name, new YamlConfiguration());
-    }
-
     private void checkUpdates() {
-        FileConfiguration tabConfig = getCustomConfig("tablist");
-        boolean checkEnabled = tabConfig.getBoolean("update_checker", true);
-        boolean autoUpdate = tabConfig.getBoolean("auto_update", false);
+        boolean checkEnabled = getConfig().getBoolean("update_checker", true);
+        boolean autoUpdate = getConfig().getBoolean("auto_update", false);
 
         if (checkEnabled) {
             UpdateChecker checker = new UpdateChecker(Constants.VERSION);
@@ -147,8 +121,8 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
                     getLogger().warning("¡Nueva versión disponible: " + latestVersion + "!");
                     
                     if (autoUpdate && !downloadUrl.isEmpty()) {
-                        File updateDir = new File(getDataFolder().getParentFile(), "update");
-                        File targetFile = new File(updateDir, "VeloTab.jar");
+                        java.io.File updateDir = new java.io.File(getDataFolder().getParentFile(), "update");
+                        java.io.File targetFile = new java.io.File(updateDir, "VeloTab.jar");
                         AutoUpdater.downloadUpdate(downloadUrl, targetFile, getLogger(), () -> {
                             Bukkit.getScheduler().runTask(this, () -> {
                                 for (Player p : Bukkit.getOnlinePlayers()) {
@@ -183,7 +157,8 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
     }
 
     public void reloadPlugin() {
-        loadAllConfigs();
+        configLoader.loadAll();
+        loadAnimations();
         
         HandlerList.unregisterAll(this);
         registerEvents();
@@ -211,8 +186,8 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
     }
 
     public String getLangMessage(String path) {
-        String lang = getCustomConfig("tablist").getString("language", "es").toLowerCase();
-        FileConfiguration langConfig = getCustomConfig(lang);
+        String lang = getConfig().getString("language", "es").toLowerCase();
+        FileConfiguration langConfig = configLoader.get("lang/" + lang);
         String msg = langConfig.getString(path, "Message missing: " + path);
         return ChatColor.translateAlternateColorCodes('&', msg);
     }
@@ -223,4 +198,5 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
     public HookManager getHookManager() { return hookManager; }
     public AnimationManager getAnimationManager() { return animationManager; }
     public PlaceholderCache getPlaceholderCache() { return placeholderCache; }
+    public ConfigLoader getConfigLoader() { return configLoader; }
 }

@@ -34,7 +34,7 @@ public class TabCompleteListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onCommandSend(PlayerCommandSendEvent event) {
-        FileConfiguration config = plugin.getCustomConfig("security");
+        FileConfiguration config = plugin.getConfigLoader().get("security/security");
         if (!config.getBoolean("Command_Hiding.Enable", true)) return;
 
         Player player = event.getPlayer();
@@ -69,7 +69,7 @@ public class TabCompleteListener implements Listener {
         if (!(event.getSender() instanceof Player)) return;
         Player player = (Player) event.getSender();
         
-        FileConfiguration config = plugin.getCustomConfig("security");
+        FileConfiguration config = plugin.getConfigLoader().get("security/security");
         if (!config.getBoolean("Command_Hiding.Enable", true)) return;
         if (player.hasPermission(config.getString("Command_Hiding.Bypass_Permission", "velotab.bypass"))) return;
 
@@ -113,7 +113,7 @@ public class TabCompleteListener implements Listener {
 
     private Set<String> getSet(String path) {
         Set<String> set = new HashSet<>();
-        for (String s : plugin.getCustomConfig("security").getStringList(path)) set.add(s.toLowerCase());
+        for (String s : plugin.getConfigLoader().get("security/security").getStringList(path)) set.add(s.toLowerCase());
         return set;
     }
 

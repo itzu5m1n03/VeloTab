@@ -28,7 +28,7 @@ public class BossBarManager {
 
     public void start() {
         stop();
-        FileConfiguration config = plugin.getCustomConfig("bossbar");
+        FileConfiguration config = plugin.getConfigLoader().get("bossbar/bossbar");
         if (!config.getBoolean("Enable", false)) return;
 
         int interval = config.getInt("Update_Interval", 40);
@@ -55,7 +55,7 @@ public class BossBarManager {
     }
 
     private void updateForPlayer(Player player) {
-        FileConfiguration config = plugin.getCustomConfig("bossbar");
+        FileConfiguration config = plugin.getConfigLoader().get("bossbar/bossbar");
         String title = config.getString("Title", "&bBienvenido a VeloTab");
         float progress = (float) config.getDouble("Progress", 1.0);
         String colorStr = config.getString("Color", "BLUE");
