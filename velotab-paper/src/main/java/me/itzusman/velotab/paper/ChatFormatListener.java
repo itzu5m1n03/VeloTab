@@ -5,15 +5,15 @@
  */
 package me.itzusman.velotab.paper;
 
+import io.papermc.paper.event.player.AsyncChatEvent;
+import me.itzusman.velotab.common.ColorUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.HoverEvent;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.cacheddata.CachedMetaData;
 import net.luckperms.api.model.user.User;
-import io.papermc.paper.event.player.AsyncChatEvent;
 import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
@@ -21,16 +21,15 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 public class ChatFormatListener implements Listener {
 
     private final VeloTabPaperPlugin plugin;
     private final boolean placeholderApiPresent;
-    private final LegacyComponentSerializer legacySerializer = LegacyComponentSerializer.legacyAmpersand();
-    private final MiniMessage miniMessage = MiniMessage.miniMessage();
-    private final Pattern hexPattern = Pattern.compile("&#([A-Fa-f0-9]{6})|#([A-Fa-f0-9]{6})");
+    private final LegacyComponentSerializer legacySerializer = LegacyComponentSerializer.builder()
+            .character('&')
+            .hexColors()
+            .useUnusualXRepeatedCharacterHexFormat()
+            .build();
 
     public ChatFormatListener(VeloTabPaperPlugin plugin, boolean placeholderApiPresent) {
         this.plugin = plugin;
@@ -95,34 +94,10 @@ public class ChatFormatListener implements Listener {
             text = PlaceholderAPI.setPlaceholders(player, text);
         }
         
-        if (text.contains("<") && text.contains(">")) {
-            return miniMessage.deserialize(legacyToMiniMessage(text));
-        } else {
-            // Corregido: Usar '&' para que coincida con legacySerializer (legacyAmpersand)
-            text = translateHexToAmpersand(text);
-            return legacySerializer.deserialize(text);
-        }
-    }
-
-    private String legacyToMiniMessage(String text) {
-        return text.replace("&0", "<black>").replace("&1", "<dark_blue>").replace("&2", "<dark_green>")
-                   .replace("&3", "<dark_aqua>").replace("&4", "<dark_red>").replace("&5", "<dark_purple>")
-                   .replace("&6", "<gold>").replace("&7", "<gray>").replace("&8", "<dark_gray>")
-                   .replace("&9", "<blue>").replace("&a", "<green>").replace("&b", "<aqua>")
-                   .replace("&c", "<red>").replace("&d", "<light_purple>").replace("&e", "<yellow>")
-                   .replace("&f", "<white>").replace("&l", "<bold>").replace("&m", "<strikethrough>")
-                   .replace("&n", "<underlined>").replace("&o", "<italic>").replace("&r", "<reset>");
-    }
-
-    private String translateHexToAmpersand(String message) {
-        Matcher matcher = hexPattern.matcher(message);
-        StringBuilder buffer = new StringBuilder(message.length() + 4 * 8);
-        while (matcher.find()) {
-            String group = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
-            // Corregido: Usar '&' en lugar de '§' para ser compatible con legacyAmpersand()
-            matcher.appendReplacement(buffer, "&x&" + group.charAt(0) + "&" + group.charAt(1) + "&" + group.charAt(2) + "&" + group.charAt(3) + "&" + group.charAt(4) + "&" + group.charAt(5));
-        }
-        return matcher.appendTail(buffer).toString();
+        // Usar ColorUtil para manejar colores & y &#RRGGBB de forma centralizada
+        String coloredText = ColorUtil.colorize(text);
+        
+        return legacySerializer.deserialize(coloredText);
     }
 
     private String resolveFormat(Player player) {

@@ -9,6 +9,7 @@ import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.event.TabCompleteResponseEvent;
 import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.event.EventHandler;
+import net.md_5.bungee.event.EventPriority;
 
 import java.util.Iterator;
 
@@ -20,7 +21,7 @@ public class TabFilterBungee implements Listener {
         this.plugin = plugin;
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onTabResponse(TabCompleteResponseEvent event) {
         if (!plugin.getConfig().getBoolean("Tab_Hide.enable", true)) return;
         if (!(event.getReceiver() instanceof ProxiedPlayer)) return;
@@ -28,9 +29,7 @@ public class TabFilterBungee implements Listener {
         ProxiedPlayer player = (ProxiedPlayer) event.getReceiver();
         if (player.hasPermission("velotab.bypass")) return;
 
-        boolean isAdmin = player.hasPermission("velotab.admin");
         Iterator<String> iterator = event.getSuggestions().iterator();
-
         while (iterator.hasNext()) {
             String suggestion = iterator.next().toLowerCase();
             String base = suggestion.contains(":") ? suggestion.substring(suggestion.indexOf(":") + 1) : suggestion;
@@ -41,18 +40,18 @@ public class TabFilterBungee implements Listener {
                 continue;
             }
 
-            // Filtrado por permiso adivinado para el proxy
+            // Ocultación basada en permisos
             if (suggestion.contains(":")) {
                 String guessed = suggestion.replace(":", ".");
-                if (!player.hasPermission(guessed) && !player.hasPermission(suggestion) && !isAdmin) {
+                if (!player.hasPermission(guessed) && !player.hasPermission(suggestion)) {
                     iterator.remove();
                 }
-            } else if (!isAdmin) {
-                // Comandos cortos que el proxy inyecta
-                if (suggestion.equals("server") || suggestion.equals("greload") || suggestion.equals("glist")) {
-                    if (!player.hasPermission("bungeecord.command." + suggestion)) {
-                        iterator.remove();
-                    }
+            } else {
+                // Comprobamos si el jugador tiene permiso para el comando base
+                if (!player.hasPermission("bungeecord.command." + base) && 
+                    !player.hasPermission(base) && 
+                    !player.hasPermission("proxy." + base)) {
+                    iterator.remove();
                 }
             }
         }

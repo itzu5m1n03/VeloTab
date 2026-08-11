@@ -1,5 +1,5 @@
 name: VeloTab-Bungee
-version: 1.6.9
+version: 1.7.0
 main: me.itzusman.velotab.bungee.VeloTabBungeePlugin
 author: ItzUsman
 description: VeloTab para BungeeCord, Waterfall y FlameCord.

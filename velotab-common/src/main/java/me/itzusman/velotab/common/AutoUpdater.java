@@ -5,46 +5,68 @@
  */
 package me.itzusman.velotab.common;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.logging.Logger;
 
 public class AutoUpdater {
 
+    /**
+     * Descarga la actualizacion desde GitHub de forma segura.
+     *
+     * @param downloadUrl URL de descarga directa del JAR.
+     * @param targetFile  Archivo destino (normalmente en la carpeta update).
+     * @param logger      Logger de la plataforma.
+     * @param onSuccess   Tarea a ejecutar tras una descarga exitosa.
+     */
     public static void downloadUpdate(String downloadUrl, File targetFile, Logger logger, Runnable onSuccess) {
         new Thread(() -> {
             try {
-                logger.info("Descargando actualizacion de VeloTab desde GitHub...");
+                logger.info("Iniciando descarga de VeloTab desde GitHub...");
                 
                 URL url = new URL(downloadUrl);
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestProperty("User-Agent", "VeloTab-AutoUpdater");
-
-                // Seguir redirecciones (GitHub las usa para los assets)
+                connection.setConnectTimeout(10000);
+                connection.setReadTimeout(10000);
+                
+                // Manejo manual de redirecciones si InstanceFollowRedirects falla
                 int status = connection.getResponseCode();
                 if (status == HttpURLConnection.HTTP_MOVED_TEMP || status == HttpURLConnection.HTTP_MOVED_PERM || status == 307 || status == 308) {
                     String newUrl = connection.getHeaderField("Location");
                     connection = (HttpURLConnection) new URL(newUrl).openConnection();
+                    connection.setRequestProperty("User-Agent", "VeloTab-AutoUpdater");
                 }
 
-                try (InputStream in = connection.getInputStream();
-                     FileOutputStream out = new FileOutputStream(targetFile)) {
-                    
-                    byte[] buffer = new byte[4096];
-                    int bytesRead;
-                    while ((bytesRead = in.read(buffer)) != -1) {
-                        out.write(buffer, 0, bytesRead);
+                if (connection.getResponseCode() == HttpURLConnection.HTTP_OK) {
+                    if (targetFile.exists()) targetFile.delete();
+                    if (!targetFile.getParentFile().exists()) targetFile.getParentFile().mkdirs();
+
+                    try (BufferedInputStream in = new BufferedInputStream(connection.getInputStream());
+                         FileOutputStream out = new FileOutputStream(targetFile)) {
+                        
+                        byte[] dataBuffer = new byte[4096];
+                        int bytesRead;
+                        while ((bytesRead = in.read(dataBuffer, 0, 4096)) != -1) {
+                            out.write(dataBuffer, 0, bytesRead);
+                        }
                     }
+
+                    if (targetFile.length() > 0) {
+                        logger.info("¡VeloTab descargado con éxito! Se aplicará en el próximo reinicio.");
+                        if (onSuccess != null) onSuccess.run();
+                    } else {
+                        logger.warning("Fallo en la descarga: El archivo está vacío.");
+                        targetFile.delete();
+                    }
+                } else {
+                    logger.warning("Error al descargar la actualización. HTTP: " + connection.getResponseCode());
                 }
-                
-                logger.info("¡VeloTab se ha actualizado correctamente! La nueva version se aplicara en el proximo reinicio.");
-                if (onSuccess != null) onSuccess.run();
-                
             } catch (Exception e) {
-                logger.warning("Error al descargar la actualizacion de VeloTab: " + e.getMessage());
+                logger.warning("Error crítico al descargar VeloTab: " + e.getMessage());
             }
         }).start();
     }

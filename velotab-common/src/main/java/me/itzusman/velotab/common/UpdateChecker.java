@@ -5,62 +5,87 @@
  */
 package me.itzusman.velotab.common;
 
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.Scanner;
 import java.util.function.BiConsumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class UpdateChecker {
 
     private final String currentVersion;
-    private final String githubRepo = "itzu5m1n03/VeloTab";
 
     public UpdateChecker(String currentVersion) {
         this.currentVersion = currentVersion;
     }
 
-    /**
-     * Obtiene la version y la URL de descarga del JAR.
-     */
     public void getLatestInfo(final BiConsumer<String, String> consumer) {
         new Thread(() -> {
-            try (InputStream inputStream = new URL("https://api.github.com/repos/" + githubRepo + "/releases/latest").openStream();
-                 Scanner scanner = new Scanner(inputStream)) {
-                
-                StringBuilder response = new StringBuilder();
-                while (scanner.hasNext()) {
-                    response.append(scanner.next());
-                }
-                String content = response.toString();
-                
-                String version = "";
-                String downloadUrl = "";
+            try {
+                URL url = new URL("https://api.github.com/repos/" + Constants.GITHUB_REPO + "/releases/latest");
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("GET");
+                connection.setRequestProperty("Accept", "application/vnd.github.v3+json");
+                connection.setRequestProperty("User-Agent", "VeloTab-Updater");
 
-                // Extraer tag_name
-                if (content.contains("tag_name")) {
-                    int start = content.indexOf("tag_name") + 11;
-                    int end = content.indexOf("\"", start);
-                    version = content.substring(start, end);
-                }
+                if (connection.getResponseCode() == 200) {
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+                        StringBuilder response = new StringBuilder();
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            response.append(line);
+                        }
+                        
+                        String content = response.toString();
+                        String version = extractValue(content, "tag_name");
+                        String downloadUrl = extractDownloadUrl(content);
 
-                // Extraer browser_download_url para VeloTab.jar
-                if (content.contains("browser_download_url")) {
-                    int start = content.indexOf("browser_download_url") + 23;
-                    int end = content.indexOf("\"", start);
-                    downloadUrl = content.substring(start, end);
+                        if (version != null && !version.isEmpty()) {
+                            consumer.accept(version, downloadUrl);
+                        }
+                    }
                 }
-
-                if (!version.isEmpty()) {
-                    consumer.accept(version, downloadUrl);
-                }
-            } catch (IOException ignored) {}
+            } catch (Exception ignored) {}
         }).start();
     }
 
+    private String extractValue(String json, String key) {
+        Pattern r = Pattern.compile("\"" + key + "\":\"(.*?)\"");
+        Matcher m = r.matcher(json);
+        if (m.find()) {
+            return m.group(1);
+        }
+        return null;
+    }
+
+    private String extractDownloadUrl(String json) {
+        Pattern r = Pattern.compile("\"browser_download_url\":\"(.*?\\.jar)\"");
+        Matcher m = r.matcher(json);
+        if (m.find()) {
+            return m.group(1);
+        }
+        return "";
+    }
+
     public boolean isNewer(String latestVersion) {
-        String cleanCurrent = currentVersion.replace("v", "");
-        String cleanLatest = latestVersion.replace("v", "");
-        return !cleanCurrent.equalsIgnoreCase(cleanLatest);
+        String cleanCurrent = currentVersion.replace("v", "").replace("V", "");
+        String cleanLatest = latestVersion.replace("v", "").replace("V", "");
+        
+        try {
+            String[] currentParts = cleanCurrent.split("\\.");
+            String[] latestParts = cleanLatest.split("\\.");
+            
+            for (int i = 0; i < Math.min(currentParts.length, latestParts.length); i++) {
+                int current = Integer.parseInt(currentParts[i]);
+                int latest = Integer.parseInt(latestParts[i]);
+                if (latest > current) return true;
+                if (current > latest) return false;
+            }
+            return latestParts.length > currentParts.length;
+        } catch (Exception e) {
+            return !cleanCurrent.equalsIgnoreCase(cleanLatest);
+        }
     }
 }

@@ -5,31 +5,15 @@
  */
 package me.itzusman.velotab.common;
 
-import java.util.Base64;
+import java.util.logging.Logger;
 
-/**
- * Proteccion de identidad para evitar que otros cambien el nombre del autor.
- */
 public class IntegrityCheck {
-    
-    // "SXR6VXNtYW4=" es "ItzUsman" en Base64
-    // "aXR6dXNtLm5ldGxpZnkuYXBw" es "itzusm.netlify.app" en Base64
-    private static final String AUTHOR_ENC = "SXR6VXNtYW4=";
-    private static final String WEB_ENC = "aXR6dXNtLm5ldGxpZnkuYXBw";
 
-    public static String getAuthor() {
-        return new String(Base64.getDecoder().decode(AUTHOR_ENC));
-    }
-
-    public static String getWebsite() {
-        return new String(Base64.getDecoder().decode(WEB_ENC));
-    }
-
-    public static void printBranding(java.util.logging.Logger logger) {
+    public static void printBranding(Logger logger) {
         logger.info("------------------------------------------------");
-        logger.info(" VeloTab v1.6.9 - Official Release");
-        logger.info(" Created by: " + getAuthor());
-        logger.info(" Website: " + getWebsite());
+        logger.info(" VeloTab v" + Constants.VERSION + " - Official Release");
+        logger.info(" Created by: " + Constants.AUTHOR);
+        logger.info(" Website: " + Constants.WEBSITE);
         logger.info(" This plugin is protected by copyright.");
         logger.info("------------------------------------------------");
     }

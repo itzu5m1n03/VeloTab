@@ -5,6 +5,7 @@
  */
 package me.itzusman.velotab.bungee;
 
+import me.itzusman.velotab.common.IntegrityCheck;
 import net.md_5.bungee.api.plugin.Plugin;
 import net.md_5.bungee.config.Configuration;
 import net.md_5.bungee.config.ConfigurationProvider;
@@ -27,7 +28,15 @@ public class VeloTabBungeePlugin extends Plugin {
     public void onEnable() {
         loadConfig();
         getProxy().getPluginManager().registerListener(this, new TabFilterBungee(this));
+        
+        IntegrityCheck.printBranding(getLogger());
         getLogger().info("VeloTab (Bungee/Waterfall) habilitado.");
+    }
+
+    @Override
+    public void onDisable() {
+        getProxy().getPluginManager().unregisterListeners(this);
+        getLogger().info("VeloTab se ha deshabilitado correctamente.");
     }
 
     public void loadConfig() {

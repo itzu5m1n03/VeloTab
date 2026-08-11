@@ -5,6 +5,7 @@
  */
 package me.itzusman.velotab.paper;
 
+import me.itzusman.velotab.common.ColorUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.luckperms.api.LuckPerms;
@@ -20,8 +21,6 @@ import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class DisplayManager {
 
@@ -33,9 +32,6 @@ public class DisplayManager {
             .hexColors()
             .useUnusualXRepeatedCharacterHexFormat()
             .build();
-
-    // Patron para detectar colores hexadecimales (&#RRGGBB o #RRGGBB)
-    private final Pattern hexPattern = Pattern.compile("&#([A-Fa-f0-9]{6})|#([A-Fa-f0-9]{6})");
 
     private BukkitRunnable updateTask;
     private static final String SORTING_TEAM_PREFIX = "vt_s_";
@@ -123,10 +119,10 @@ public class DisplayManager {
                 team.addEntry(target.getName());
             }
 
-            // Name_Layering DESACTIVADO por ahora para evitar bugs de visualización
-            target.playerListName(null);
+            // Ocultar cualquier prefijo/sufijo de team para evitar conflictos visuales
             team.prefix(Component.empty());
             team.suffix(Component.empty());
+            target.playerListName(null);
         }
     }
 
@@ -178,32 +174,13 @@ public class DisplayManager {
     public Component buildComponent(Player player, String text) {
         if (text == null || text.isEmpty()) return Component.empty();
 
-        // 1. Resolver Placeholders (PAPI)
         if (plugin.isPlaceholderApiPresent()) {
             text = PlaceholderAPI.setPlaceholders(player, text);
         }
 
-        // 2. Limpiar CUALQUIER tag de MiniMessage o HTML que el usuario haya puesto por error
-        // Solo queremos & y &#RRGGBB
-        text = text.replaceAll("<[^>]*>", "");
+        // Usar ColorUtil para manejar colores & y &#RRGGBB de forma centralizada
+        String coloredText = ColorUtil.colorize(text);
 
-        // 3. Traducir Hexadecimales al formato legacy que Adventure entiende nativamente
-        String coloredText = translateHexToLegacy(text);
-
-        // 4. Deserializar usando el formato Legacy (&)
         return legacySerializer.deserialize(coloredText);
-    }
-
-    private String translateHexToLegacy(String message) {
-        Matcher matcher = hexPattern.matcher(message);
-        StringBuilder buffer = new StringBuilder(message.length() + 4 * 8);
-        while (matcher.find()) {
-            String group = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
-            // Formato estándar de Minecraft para Hex: &x&r&r&g&g&b&b
-            matcher.appendReplacement(buffer, "&x&" + group.charAt(0) + "&" + group.charAt(1)
-                    + "&" + group.charAt(2) + "&" + group.charAt(3)
-                    + "&" + group.charAt(4) + "&" + group.charAt(5));
-        }
-        return matcher.appendTail(buffer).toString();
     }
 }

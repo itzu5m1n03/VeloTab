@@ -50,11 +50,11 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
         registerEvents();
 
         if (getConfig().getBoolean("network_sync.enable", true)) {
-            getServer().getMessenger().registerIncomingPluginChannel(this, "velotab:sync", this);
-            getServer().getMessenger().registerOutgoingPluginChannel(this, "velotab:sync");
+            getServer().getMessenger().registerIncomingPluginChannel(this, me.itzusman.velotab.common.Constants.SYNC_CHANNEL, this);
+            getServer().getMessenger().registerOutgoingPluginChannel(this, me.itzusman.velotab.common.Constants.SYNC_CHANNEL);
         }
 
-        // Sistema de Actualizacion Automatica
+        // Sistema de Actualización Automática
         checkUpdates();
 
         VeloTabCommand cmd = new VeloTabCommand(this);
@@ -66,34 +66,44 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
         IntegrityCheck.printBranding(getLogger());
     }
 
+    @Override
+    public void onDisable() {
+        if (displayManager != null) {
+            displayManager.stop();
+        }
+        
+        getServer().getMessenger().unregisterIncomingPluginChannel(this);
+        getServer().getMessenger().unregisterOutgoingPluginChannel(this);
+        
+        HandlerList.unregisterAll(this);
+        
+        getLogger().info("VeloTab se ha deshabilitado correctamente.");
+    }
+
     private void checkUpdates() {
         boolean checkEnabled = getConfig().getBoolean("update_checker", true);
         boolean autoUpdate = getConfig().getBoolean("auto_update", false);
 
         if (checkEnabled) {
-            UpdateChecker checker = new UpdateChecker(getDescription().getVersion());
+            UpdateChecker checker = new UpdateChecker(me.itzusman.velotab.common.Constants.VERSION);
             checker.getLatestInfo((latestVersion, downloadUrl) -> {
                 if (checker.isNewer(latestVersion)) {
-                    getLogger().warning("¡Nueva version disponible: " + latestVersion + "!");
+                    getLogger().warning("¡Nueva versión disponible: " + latestVersion + "!");
                     
                     if (autoUpdate && !downloadUrl.isEmpty()) {
-                        // Usar la carpeta 'update' de Bukkit para un reemplazo limpio al reiniciar
                         File updateDir = new File(getDataFolder().getParentFile(), "update");
-                        if (!updateDir.exists()) updateDir.mkdirs();
-                        
                         File targetFile = new File(updateDir, "VeloTab.jar");
                         AutoUpdater.downloadUpdate(downloadUrl, targetFile, getLogger(), () -> {
-                            // Opcional: Avisar a OPs online
                             Bukkit.getScheduler().runTask(this, () -> {
                                 for (Player p : Bukkit.getOnlinePlayers()) {
                                     if (p.isOp()) {
-                                        p.sendMessage(ChatColor.GREEN + "[VeloTab] Se ha descargado una nueva version (" + latestVersion + "). Reinicia el servidor para aplicarla.");
+                                        p.sendMessage(ChatColor.GREEN + "[VeloTab] Se ha descargado la versión " + latestVersion + ". Reinicia el servidor para aplicarla.");
                                     }
                                 }
                             });
                         });
                     } else {
-                        getLogger().info("Descarga la nueva version en: https://github.com/itzu5m1n03/VeloTab/releases");
+                        getLogger().info("Descarga la nueva versión en: https://github.com/" + me.itzusman.velotab.common.Constants.GITHUB_REPO + "/releases");
                     }
                 }
             });
@@ -131,7 +141,7 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
 
     @Override
     public void onPluginMessageReceived(String channel, Player player, byte[] message) {
-        if (!channel.equals("velotab:sync")) return;
+        if (!channel.equals(me.itzusman.velotab.common.Constants.SYNC_CHANNEL)) return;
         reloadPlugin();
     }
 

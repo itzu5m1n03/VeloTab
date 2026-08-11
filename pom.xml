@@ -6,7 +6,7 @@
 
     <groupId>me.itzusman</groupId>
     <artifactId>VeloTab-Parent</artifactId>
-    <version>1.6.9</version>
+    <version>1.7.0</version>
     <packaging>pom</packaging>
 
     <properties>
