@@ -20,13 +20,16 @@ import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class DisplayManager {
 
     private final VeloTabPaperPlugin plugin;
-
-    // Serializador Legacy robusto para codigos & y Hex nativo de Minecraft
     private final LegacyComponentSerializer legacySerializer = LegacyComponentSerializer.builder()
             .character('&')
             .hexColors()
@@ -34,7 +37,10 @@ public class DisplayManager {
             .build();
 
     private BukkitRunnable updateTask;
+    private long currentTicks = 0;
     private static final String SORTING_TEAM_PREFIX = "vt_s_";
+    private final Map<UUID, Boolean> scoreboardVisibility = new HashMap<>();
+    private final Pattern animPattern = Pattern.compile("\\{anim:([^}]+)\\}");
 
     public DisplayManager(VeloTabPaperPlugin plugin) {
         this.plugin = plugin;
@@ -46,9 +52,11 @@ public class DisplayManager {
         updateTask = new BukkitRunnable() {
             @Override
             public void run() {
+                currentTicks += interval;
                 for (Player player : Bukkit.getOnlinePlayers()) {
                     updateTabList(player);
                     updateScoreboard(player);
+                    updateTabObjectives(player);
                 }
             }
         };
@@ -59,6 +67,16 @@ public class DisplayManager {
         if (updateTask != null) {
             updateTask.cancel();
             updateTask = null;
+        }
+    }
+
+    public void toggleScoreboard(Player player) {
+        UUID uuid = player.getUniqueId();
+        boolean current = scoreboardVisibility.getOrDefault(uuid, true);
+        scoreboardVisibility.put(uuid, !current);
+        
+        if (current) {
+            player.getScoreboard().clearSlot(DisplaySlot.SIDEBAR);
         }
     }
 
@@ -85,12 +103,19 @@ public class DisplayManager {
 
         LuckPerms lp = null;
         if (plugin.isLuckPermsPresent()) {
-            try {
-                lp = LuckPermsProvider.get();
-            } catch (Exception ignored) {}
+            try { lp = LuckPermsProvider.get(); } catch (Exception ignored) {}
         }
 
         for (Player target : Bukkit.getOnlinePlayers()) {
+            // 1. Manejo de Vanish: Si el objetivo esta en vanish y el espectador no es OP, ocultar.
+            if (plugin.getHookManager().isVanished(target) && !viewer.isOp()) {
+                viewer.hidePlayer(plugin, target);
+                continue;
+            } else if (!target.canSee(viewer)) {
+                // Asegurar que si ya no esta en vanish, se vea.
+                viewer.showPlayer(plugin, target);
+            }
+
             String priority = "99";
             String group = "default";
             if (lp != null) {
@@ -101,14 +126,12 @@ public class DisplayManager {
                 } catch (Exception ignored) {}
             }
 
-            // Team de ordenación basado en prioridad
+            // Team de ordenacion basado en prioridad
             String teamName = SORTING_TEAM_PREFIX + priority + group;
             if (teamName.length() > 16) teamName = teamName.substring(0, 16);
 
             Team team = board.getTeam(teamName);
-            if (team == null) {
-                team = board.registerNewTeam(teamName);
-            }
+            if (team == null) team = board.registerNewTeam(teamName);
 
             if (!team.hasEntry(target.getName())) {
                 for (Team t : board.getTeams()) {
@@ -119,15 +142,48 @@ public class DisplayManager {
                 team.addEntry(target.getName());
             }
 
-            // Ocultar cualquier prefijo/sufijo de team para evitar conflictos visuales
-            team.prefix(Component.empty());
-            team.suffix(Component.empty());
-            target.playerListName(null);
+            // 2. Manejo de AFK en el nombre del Tab
+            String displayName = target.getName();
+            if (plugin.getHookManager().isAFK(target)) {
+                displayName = plugin.getConfig().getString("TabList.AFK_Format", "&7[AFK] ") + displayName;
+            }
+            
+            // 3. Deteccion de Bedrock
+            if (plugin.getHookManager().isBedrock(target)) {
+                displayName = plugin.getConfig().getString("TabList.Bedrock_Prefix", "&7[BE] ") + displayName;
+            }
+
+            target.playerListName(buildComponent(target, displayName));
+        }
+    }
+
+    private void updateTabObjectives(Player player) {
+        String type = plugin.getConfig().getString("TabList.Objective.Type", "NONE").toUpperCase();
+        if (type.equals("NONE")) return;
+
+        Scoreboard board = player.getScoreboard();
+        Objective obj = board.getObjective("vt_tab_obj");
+        
+        if (obj == null) {
+            String title = type.equals("HEALTH") ? "§c❤" : "ms";
+            obj = board.registerNewObjective("vt_tab_obj", "dummy", title);
+            obj.setDisplaySlot(DisplaySlot.PLAYER_LIST);
+        }
+
+        for (Player target : Bukkit.getOnlinePlayers()) {
+            int value = 0;
+            if (type.equals("HEALTH")) {
+                value = (int) target.getHealth();
+            } else if (type.equals("PING")) {
+                value = target.getPing();
+            }
+            obj.getScore(target.getName()).setScore(value);
         }
     }
 
     private void updateScoreboard(Player player) {
         if (!plugin.getConfig().getBoolean("Scoreboard.Enable", true)) return;
+        if (!scoreboardVisibility.getOrDefault(player.getUniqueId(), true)) return;
 
         Scoreboard board = player.getScoreboard();
         if (board == Bukkit.getScoreboardManager().getMainScoreboard()) {
@@ -174,13 +230,29 @@ public class DisplayManager {
     public Component buildComponent(Player player, String text) {
         if (text == null || text.isEmpty()) return Component.empty();
 
+        // 1. Procesar Animaciones {anim:name}
+        text = processAnimations(text);
+
+        // 2. Resolver Placeholders (con cache opcional)
         if (plugin.isPlaceholderApiPresent()) {
             text = PlaceholderAPI.setPlaceholders(player, text);
         }
 
-        // Usar ColorUtil para manejar colores & y &#RRGGBB de forma centralizada
+        // 3. Colorear (Legacy + Hex)
         String coloredText = ColorUtil.colorize(text);
 
         return legacySerializer.deserialize(coloredText);
+    }
+
+    private String processAnimations(String text) {
+        Matcher matcher = animPattern.matcher(text);
+        StringBuilder sb = new StringBuilder();
+        while (matcher.find()) {
+            String animName = matcher.group(1);
+            String frame = plugin.getAnimationManager().getCurrentFrame(animName, currentTicks);
+            matcher.appendReplacement(sb, Matcher.quoteReplacement(frame));
+        }
+        matcher.appendTail(sb);
+        return sb.toString();
     }
 }

@@ -5,8 +5,11 @@
  */
 package me.itzusman.velotab.paper;
 
+import me.itzusman.velotab.common.AnimationManager;
 import me.itzusman.velotab.common.AutoUpdater;
+import me.itzusman.velotab.common.Constants;
 import me.itzusman.velotab.common.IntegrityCheck;
+import me.itzusman.velotab.common.PlaceholderCache;
 import me.itzusman.velotab.common.UpdateChecker;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -28,14 +31,22 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
     private TabCompleteListener tabCompleteListener;
     private ChatFormatListener chatFormatListener;
     private DisplayManager displayManager;
+    private BossBarManager bossBarManager;
+    private ActionBarManager actionBarManager;
+    private HookManager hookManager;
+    private AnimationManager animationManager;
+    private PlaceholderCache placeholderCache;
+
     private boolean placeholderApiPresent;
     private boolean luckPermsPresent;
     private FileConfiguration langConfig;
+    private FileConfiguration animationsConfig;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
         loadLang();
+        loadAnimations();
 
         placeholderApiPresent = Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null;
         luckPermsPresent = Bukkit.getPluginManager().getPlugin("LuckPerms") != null;
@@ -44,17 +55,27 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
             checkPapiExpansions();
         }
 
-        displayManager = new DisplayManager(this);
-        displayManager.start();
+        this.animationManager = new AnimationManager();
+        this.placeholderCache = new PlaceholderCache();
+        this.hookManager = new HookManager(this);
+        this.hookManager.init();
+
+        this.displayManager = new DisplayManager(this);
+        this.displayManager.start();
+
+        this.bossBarManager = new BossBarManager(this);
+        this.bossBarManager.start();
+
+        this.actionBarManager = new ActionBarManager(this);
+        this.actionBarManager.start();
 
         registerEvents();
 
         if (getConfig().getBoolean("network_sync.enable", true)) {
-            getServer().getMessenger().registerIncomingPluginChannel(this, me.itzusman.velotab.common.Constants.SYNC_CHANNEL, this);
-            getServer().getMessenger().registerOutgoingPluginChannel(this, me.itzusman.velotab.common.Constants.SYNC_CHANNEL);
+            getServer().getMessenger().registerIncomingPluginChannel(this, Constants.SYNC_CHANNEL, this);
+            getServer().getMessenger().registerOutgoingPluginChannel(this, Constants.SYNC_CHANNEL);
         }
 
-        // Sistema de Actualización Automática
         checkUpdates();
 
         VeloTabCommand cmd = new VeloTabCommand(this);
@@ -68,16 +89,32 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
 
     @Override
     public void onDisable() {
-        if (displayManager != null) {
-            displayManager.stop();
-        }
+        if (displayManager != null) displayManager.stop();
+        if (bossBarManager != null) bossBarManager.stop();
+        if (actionBarManager != null) actionBarManager.stop();
         
         getServer().getMessenger().unregisterIncomingPluginChannel(this);
         getServer().getMessenger().unregisterOutgoingPluginChannel(this);
         
         HandlerList.unregisterAll(this);
-        
         getLogger().info("VeloTab se ha deshabilitado correctamente.");
+    }
+
+    public void loadAnimations() {
+        File file = new File(getDataFolder(), "animations.yml");
+        if (!file.exists()) saveResource("animations.yml", false);
+        animationsConfig = YamlConfiguration.loadConfiguration(file);
+        
+        if (animationManager != null) {
+            animationManager.clear();
+            if (animationsConfig.contains("animations")) {
+                for (String key : animationsConfig.getConfigurationSection("animations").getKeys(false)) {
+                    int interval = animationsConfig.getInt("animations." + key + ".interval", 20);
+                    java.util.List<String> frames = animationsConfig.getStringList("animations." + key + ".frames");
+                    animationManager.registerAnimation(key, frames, interval);
+                }
+            }
+        }
     }
 
     private void checkUpdates() {
@@ -85,7 +122,7 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
         boolean autoUpdate = getConfig().getBoolean("auto_update", false);
 
         if (checkEnabled) {
-            UpdateChecker checker = new UpdateChecker(me.itzusman.velotab.common.Constants.VERSION);
+            UpdateChecker checker = new UpdateChecker(Constants.VERSION);
             checker.getLatestInfo((latestVersion, downloadUrl) -> {
                 if (checker.isNewer(latestVersion)) {
                     getLogger().warning("¡Nueva versión disponible: " + latestVersion + "!");
@@ -103,7 +140,7 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
                             });
                         });
                     } else {
-                        getLogger().info("Descarga la nueva versión en: https://github.com/" + me.itzusman.velotab.common.Constants.GITHUB_REPO + "/releases");
+                        getLogger().info("Descarga la nueva versión en: https://github.com/" + Constants.GITHUB_REPO + "/releases");
                     }
                 }
             });
@@ -114,7 +151,7 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
         String[] expansions = {"luckperms", "player", "server", "bungee"};
         for (String ext : expansions) {
             if (!PlaceholderAPI.containsPlaceholders("%" + ext + "_")) {
-                getLogger().warning("Falta la expansion de PAPI: " + ext + ". Instala con /papi ecloud download " + ext);
+                getLogger().warning("Falta la expansión de PAPI: " + ext + ". Instala con /papi ecloud download " + ext);
             }
         }
     }
@@ -129,19 +166,30 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
     public void reloadPlugin() {
         reloadConfig();
         loadLang();
+        loadAnimations();
         
         HandlerList.unregisterAll(this);
         registerEvents();
         
-        displayManager.stop();
-        displayManager.start();
+        if (displayManager != null) {
+            displayManager.stop();
+            displayManager.start();
+        }
+        if (bossBarManager != null) {
+            bossBarManager.stop();
+            bossBarManager.start();
+        }
+        if (actionBarManager != null) {
+            actionBarManager.stop();
+            actionBarManager.start();
+        }
         
         getLogger().info("Plugin recargado exitosamente.");
     }
 
     @Override
     public void onPluginMessageReceived(String channel, Player player, byte[] message) {
-        if (!channel.equals(me.itzusman.velotab.common.Constants.SYNC_CHANNEL)) return;
+        if (!channel.equals(Constants.SYNC_CHANNEL)) return;
         reloadPlugin();
     }
 
@@ -157,7 +205,6 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
         }
         
         langConfig = YamlConfiguration.loadConfiguration(langFile);
-        
         InputStream defLangStream = getResource("lang/" + lang + ".yml");
         if (defLangStream != null) {
             langConfig.setDefaults(YamlConfiguration.loadConfiguration(new InputStreamReader(defLangStream, StandardCharsets.UTF_8)));
@@ -171,4 +218,8 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
 
     public boolean isPlaceholderApiPresent() { return placeholderApiPresent; }
     public boolean isLuckPermsPresent() { return luckPermsPresent; }
+    public DisplayManager getDisplayManager() { return displayManager; }
+    public HookManager getHookManager() { return hookManager; }
+    public AnimationManager getAnimationManager() { return animationManager; }
+    public PlaceholderCache getPlaceholderCache() { return placeholderCache; }
 }

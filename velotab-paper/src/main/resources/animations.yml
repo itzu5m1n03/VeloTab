@@ -1,0 +1,24 @@
+# VeloTab Animations Configuration
+# Define tus animaciones aquí. Puedes usarlas en el TabList o Scoreboard usando {anim:nombre}
+
+animations:
+  server_name:
+    interval: 5
+    frames:
+      - "&b&lV&3&lELOTAB"
+      - "&3&lV&b&lE&3&lLOTAB"
+      - "&3&lVE&b&l L&3&lOTAB"
+      - "&3&lVEL&b&lO&3&lTAB"
+      - "&3&lVELO&b&lT&3&lAB"
+      - "&3&lVELOT&b&lA&3&lB"
+      - "&3&lVELOTA&b&lB"
+  
+  rainbow_footer:
+    interval: 2
+    frames:
+      - "&cVisita nuestra web!"
+      - "&6Visita nuestra web!"
+      - "&eVisita nuestra web!"
+      - "&aVisita nuestra web!"
+      - "&bVisita nuestra web!"
+      - "&dVisita nuestra web!"

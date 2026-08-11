@@ -7,21 +7,24 @@
     <parent>
         <groupId>me.itzusman</groupId>
         <artifactId>VeloTab-Parent</artifactId>
-        <version>1.7.0</version>
+        <version>1.8.0</version>
     </parent>
 
     <artifactId>VeloTab-Paper</artifactId>
     <packaging>jar</packaging>
 
     <repositories>
-        <!-- API de Paper. 1.20.4 como base: el plugin usa api-version
-             "1.20" en plugin.yml, lo que permite que Paper lo cargue en
-             cualquier 1.20.x. Para 1.21+ solo revisa que la API siga
-             siendo compatible (normalmente sí, Paper mantiene compatibilidad
-             hacia adelante para estos eventos). -->
         <repository>
             <id>papermc</id>
             <url>https://repo.papermc.io/repository/maven-public/</url>
+        </repository>
+        <repository>
+            <id>essentials-releases</id>
+            <url>https://repo.essentialsx.net/releases/</url>
+        </repository>
+        <repository>
+            <id>opencollab-snapshot</id>
+            <url>https://repo.opencollab.dev/main/</url>
         </repository>
         <repository>
             <id>luckperms</id>
@@ -37,7 +40,7 @@
         <dependency>
             <groupId>me.itzusman</groupId>
             <artifactId>VeloTab-Common</artifactId>
-            <version>1.7.0</version>
+            <version>1.8.0</version>
         </dependency>
         <dependency>
             <groupId>io.papermc.paper</groupId>
@@ -55,6 +58,18 @@
             <groupId>me.clip</groupId>
             <artifactId>placeholderapi</artifactId>
             <version>2.11.6</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.essentialsx</groupId>
+            <artifactId>EssentialsX</artifactId>
+            <version>2.20.1</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.geysermc.geyser</groupId>
+            <artifactId>api</artifactId>
+            <version>2.1.0-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
