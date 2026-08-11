@@ -6,7 +6,7 @@
 package me.itzusman.velotab.common;
 
 public class Constants {
-    public static final String VERSION = "2.0.0";
+    public static final String VERSION = "2.1.0";
     public static final String AUTHOR = "ItzUsman";
     public static final String WEBSITE = "itzusm.netlify.app";
     public static final String GITHUB_REPO = "itzu5m1n03/VeloTab";

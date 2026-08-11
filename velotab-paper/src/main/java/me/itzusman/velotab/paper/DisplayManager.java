@@ -42,7 +42,10 @@ public class DisplayManager {
     private long currentTicks = 0;
     private static final String SORTING_TEAM_PREFIX = "vt_s_";
     private final Map<UUID, Boolean> scoreboardVisibility = new HashMap<>();
+    
     private final Pattern animPattern = Pattern.compile("\\{anim:([^}]+)\\}");
+    private final Pattern scrollerPattern = Pattern.compile("\\{scroller:([^,]+):(\\d+):(\\d+)\\}");
+    private final Pattern rainbowPattern = Pattern.compile("\\{rainbow:([^}]+)\\}");
     
     private final ScoreboardPageManager pageManager;
 
@@ -59,7 +62,7 @@ public class DisplayManager {
         updateTask = new BukkitRunnable() {
             @Override
             public void run() {
-                currentTicks += interval;
+                currentTicks++;
                 for (Player player : Bukkit.getOnlinePlayers()) {
                     updateTabList(player);
                     updateScoreboard(player);
@@ -67,7 +70,7 @@ public class DisplayManager {
                 }
             }
         };
-        updateTask.runTaskTimer(plugin, 0L, interval);
+        updateTask.runTaskTimer(plugin, 0L, 1L); // Correr cada tick para animaciones fluidas
     }
 
     public void stop() {
@@ -88,7 +91,6 @@ public class DisplayManager {
         FileConfiguration tabConfig = plugin.getConfigLoader().get("tablist/tablist");
         if (!tabConfig.getBoolean("Enable", true)) return;
 
-        // Soporte para Grupos de TabList
         ConfigurationSection groups = plugin.getConfigLoader().get("tablist/groups").getConfigurationSection("groups");
         String headerKey = "Default.Header";
         String footerKey = "Default.Footer";
@@ -151,7 +153,6 @@ public class DisplayManager {
                 } catch (Exception ignored) {}
             }
 
-            // Soporte para Separadores
             String teamName = SORTING_TEAM_PREFIX + priority + group;
             if (separatorsConfig.getBoolean("enable", false)) {
                 ConfigurationSection cats = separatorsConfig.getConfigurationSection("categories");
@@ -223,7 +224,6 @@ public class DisplayManager {
             player.setScoreboard(board);
         }
 
-        // Obtener página actual (Rotativa)
         ScoreboardPageManager.ScoreboardPage page = pageManager.getCurrentPage(currentTicks);
 
         Objective obj = board.getObjective("velotab_sb");
@@ -250,7 +250,6 @@ public class DisplayManager {
             team.prefix(buildComponent(player, line));
         }
         
-        // Limpiar lineas sobrantes si la nueva pagina es mas corta
         for (int i = size; i < 15; i++) {
             String teamName = "sb_line_" + i;
             Team team = board.getTeam(teamName);
@@ -272,10 +271,39 @@ public class DisplayManager {
 
     public Component buildComponent(Player player, String text) {
         if (text == null || text.isEmpty()) return Component.empty();
+        
+        // 1. Efectos Avanzados (Scroller y Rainbow)
+        text = processAdvancedEffects(text);
+        
+        // 2. Animaciones Base
         text = processAnimations(text);
+        
+        // 3. Placeholders
         if (plugin.isPlaceholderApiPresent()) text = PlaceholderAPI.setPlaceholders(player, text);
+        
+        // 4. Colores
         String coloredText = ColorUtil.colorize(text);
         return legacySerializer.deserialize(coloredText);
+    }
+
+    private String processAdvancedEffects(String text) {
+        // Scroller: {scroller:TEXTO:WIDTH:SPACE}
+        Matcher sm = scrollerPattern.matcher(text);
+        while (sm.find()) {
+            String content = sm.group(1);
+            int width = Integer.parseInt(sm.group(2));
+            int space = Integer.parseInt(sm.group(3));
+            text = text.replace(sm.group(0), plugin.getAnimationManager().getScroller(content, width, space, currentTicks / 2));
+        }
+        
+        // Rainbow: {rainbow:TEXTO}
+        Matcher rm = rainbowPattern.matcher(text);
+        while (rm.find()) {
+            String content = rm.group(1);
+            text = text.replace(rm.group(0), plugin.getAnimationManager().getRainbow(content, currentTicks / 2));
+        }
+        
+        return text;
     }
 
     private String processAnimations(String text) {
@@ -283,14 +311,10 @@ public class DisplayManager {
         StringBuilder sb = new StringBuilder();
         while (matcher.find()) {
             String animName = matcher.group(1);
-            String frame = plugin.getAnimationManager().getCurrentFrame(animName, currentTicks);
+            String frame = plugin.getAnimationManager().getCurrentFrame(animName, currentTicks / 5);
             matcher.appendReplacement(sb, Matcher.quoteReplacement(frame));
         }
         matcher.appendTail(sb);
         return sb.toString();
-    }
-    
-    public void reloadPages() {
-        pageManager.load();
     }
 }

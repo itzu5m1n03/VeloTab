@@ -62,6 +62,19 @@ public class VeloTabCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (args[0].equalsIgnoreCase("menu")) {
+            if (!(sender instanceof Player)) {
+                sender.sendMessage("§cSolo jugadores pueden usar este comando.");
+                return true;
+            }
+            if (!sender.hasPermission("velotab.admin")) {
+                sender.sendMessage(plugin.getLangMessage("no-permission"));
+                return true;
+            }
+            plugin.getMenuManager().openMainMenu((Player) sender);
+            return true;
+        }
+
         sendHelp(sender);
         return true;
     }
@@ -71,6 +84,7 @@ public class VeloTabCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage("§8» §b/velotab info §8- §7Muestra información del plugin.");
         sender.sendMessage("§8» §b/velotab toggle §8- §7Muestra/Oculta tu Scoreboard.");
         if (sender.hasPermission("velotab.admin")) {
+            sender.sendMessage("§8» §b/velotab menu §8- §7Abre el menú de configuración visual.");
             sender.sendMessage("§8» §b/velotab reload §8- §7Recarga toda la configuración.");
         }
     }
@@ -79,7 +93,10 @@ public class VeloTabCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, String[] args) {
         if (args.length == 1) {
             List<String> sub = new ArrayList<>(Arrays.asList("info", "help", "toggle"));
-            if (sender.hasPermission("velotab.admin")) sub.add("reload");
+            if (sender.hasPermission("velotab.admin")) {
+                sub.add("reload");
+                sub.add("menu");
+            }
             return sub.stream().filter(s -> s.startsWith(args[0].toLowerCase())).collect(Collectors.toList());
         }
         return new ArrayList<>();

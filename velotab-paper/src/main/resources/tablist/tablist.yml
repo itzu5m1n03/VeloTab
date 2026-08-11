@@ -2,7 +2,15 @@
 Enable: true
 Update_Interval: 20
 
-# Formato por defecto si el jugador no tiene un grupo específico
+# --- NAMETAGS PRO (Packet-Based) ---
+# Crea líneas físicas arriba y abajo del nombre del jugador.
+# Requiere ProtocolLib habilitado en config.yml
+Nametags_Pro:
+  Enable: false
+  UpName: "&8[%luckperms_prefix%&8]"
+  DownName: "&a%player_ping%ms"
+
+# Formato por defecto
 Default:
   Header:
     - ""
@@ -15,13 +23,12 @@ Default:
     - "&8tienda.lobomax.xyz"
     - ""
 
-# Formato para jugadores AFK (Requiere EssentialsX)
+# Formato para jugadores AFK
 AFK_Format: "&7[AFK] "
 
-# Prefijo para jugadores de Bedrock (Requiere Geyser)
+# Prefijo para jugadores de Bedrock
 Bedrock_Prefix: "&7[BE] "
 
-# Objetivo en el Tab (Derecha del nombre)
-# Tipos: NONE, HEALTH, PING
+# Objetivo en el Tab
 Objective:
   Type: "PING"

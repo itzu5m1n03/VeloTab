@@ -39,6 +39,40 @@ public class AnimationManager {
         return anim.getFrame(currentTicks);
     }
 
+    /**
+     * Crea un efecto de texto deslizante (Scroller).
+     */
+    public String getScroller(String text, int width, int space, long currentTicks) {
+        if (text == null || text.isEmpty()) return "";
+        
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < space; i++) builder.append(" ");
+        String fullText = text + builder.toString();
+        
+        int length = fullText.length();
+        int index = (int) (currentTicks % length);
+        
+        StringBuilder scroller = new StringBuilder();
+        for (int i = 0; i < width; i++) {
+            scroller.append(fullText.charAt((index + i) % length));
+        }
+        return scroller.toString();
+    }
+
+    /**
+     * Crea un efecto de arcoíris letra por letra.
+     */
+    public String getRainbow(String text, long currentTicks) {
+        if (text == null || text.isEmpty()) return "";
+        String[] colors = {"&c", "&6", "&e", "&a", "&b", "&d"};
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < text.length(); i++) {
+            int colorIndex = (int) ((currentTicks + i) % colors.length);
+            builder.append(colors[colorIndex]).append(text.charAt(i));
+        }
+        return builder.toString();
+    }
+
     public void clear() {
         animations.clear();
     }

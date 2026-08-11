@@ -5,12 +5,7 @@
  */
 package me.itzusman.velotab.paper;
 
-import me.itzusman.velotab.common.AnimationManager;
-import me.itzusman.velotab.common.AutoUpdater;
-import me.itzusman.velotab.common.Constants;
-import me.itzusman.velotab.common.IntegrityCheck;
-import me.itzusman.velotab.common.PlaceholderCache;
-import me.itzusman.velotab.common.UpdateChecker;
+import me.itzusman.velotab.common.*;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -31,6 +26,9 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
     private HookManager hookManager;
     private AnimationManager animationManager;
     private PlaceholderCache placeholderCache;
+    private DatabaseManager databaseManager;
+    private NametagManager nametagManager;
+    private MenuManager menuManager;
 
     private boolean placeholderApiPresent;
     private boolean luckPermsPresent;
@@ -45,12 +43,26 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
 
         if (placeholderApiPresent) {
             checkPapiExpansions();
+            new VeloTabExpansion(this).register();
         }
 
         this.animationManager = new AnimationManager();
         this.placeholderCache = new PlaceholderCache();
         this.hookManager = new HookManager(this);
         this.hookManager.init();
+        
+        // Base de Datos
+        this.databaseManager = new DatabaseManager(getLogger());
+        if (getConfig().getBoolean("database.enable", false)) {
+            databaseManager.init(
+                getConfig().getString("database.host"),
+                getConfig().getInt("database.port"),
+                getConfig().getString("database.name"),
+                getConfig().getString("database.user"),
+                getConfig().getString("database.password"),
+                getConfig().getBoolean("database.ssl")
+            );
+        }
 
         // Registrar Animaciones
         loadAnimations();
@@ -67,6 +79,11 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
             this.actionBarManager = new ActionBarManager(this);
             this.actionBarManager.start();
         }
+        
+        this.nametagManager = new NametagManager(this);
+        this.nametagManager.start();
+        
+        this.menuManager = new MenuManager(this);
 
         registerEvents();
 
@@ -102,6 +119,8 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
         if (displayManager != null) displayManager.stop();
         if (bossBarManager != null) bossBarManager.stop();
         if (actionBarManager != null) actionBarManager.stop();
+        if (nametagManager != null) nametagManager.stop();
+        if (databaseManager != null) databaseManager.close();
         
         getServer().getMessenger().unregisterIncomingPluginChannel(this);
         getServer().getMessenger().unregisterOutgoingPluginChannel(this);
@@ -154,6 +173,7 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
         chatFormatListener = new ChatFormatListener(this, placeholderApiPresent);
         getServer().getPluginManager().registerEvents(tabCompleteListener, this);
         getServer().getPluginManager().registerEvents(chatFormatListener, this);
+        getServer().getPluginManager().registerEvents(menuManager, this);
     }
 
     public void reloadPlugin() {
@@ -174,6 +194,10 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
         if (actionBarManager != null) {
             actionBarManager.stop();
             actionBarManager.start();
+        }
+        if (nametagManager != null) {
+            nametagManager.stop();
+            nametagManager.start();
         }
         
         getLogger().info("Plugin recargado exitosamente.");
@@ -199,4 +223,6 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
     public AnimationManager getAnimationManager() { return animationManager; }
     public PlaceholderCache getPlaceholderCache() { return placeholderCache; }
     public ConfigLoader getConfigLoader() { return configLoader; }
+    public DatabaseManager getDatabaseManager() { return databaseManager; }
+    public MenuManager getMenuManager() { return menuManager; }
 }

@@ -1,5 +1,5 @@
 # =====================================================
-#  VeloTab v2.0.0 - The Modular Revolution
+#  VeloTab v2.1.0 - The Premium Experience
 #  Creado por ItzUsman (itzusm.netlify.app)
 # =====================================================
 
@@ -7,7 +7,6 @@
 language: es
 
 # --- MÓDULOS ---
-# Habilita o deshabilita las carpetas de configuración.
 modules:
   tablist: true
   scoreboard: true
@@ -17,6 +16,19 @@ modules:
   security: true
   discord: false
   animations: true
+  nametags_pro: false # Requiere ProtocolLib
+
+# --- BASE DE DATOS ---
+# Sincroniza datos entre servidores (Toggle, Tags, etc.)
+database:
+  enable: false
+  type: "MYSQL" # MYSQL, SQLITE
+  host: "localhost"
+  port: 3306
+  name: "velotab"
+  user: "root"
+  password: ""
+  ssl: false
 
 # --- ACTUALIZACIONES ---
 update_checker: true
