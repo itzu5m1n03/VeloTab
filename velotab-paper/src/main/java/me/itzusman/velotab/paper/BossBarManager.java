@@ -8,11 +8,11 @@ package me.itzusman.velotab.paper;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -28,9 +28,10 @@ public class BossBarManager {
 
     public void start() {
         stop();
-        if (!plugin.getConfig().getBoolean("BossBar.Enable", false)) return;
+        FileConfiguration config = plugin.getCustomConfig("bossbar");
+        if (!config.getBoolean("Enable", false)) return;
 
-        int interval = plugin.getConfig().getInt("BossBar.Update_Interval", 20);
+        int interval = config.getInt("Update_Interval", 40);
         updateTask = new BukkitRunnable() {
             @Override
             public void run() {
@@ -54,10 +55,11 @@ public class BossBarManager {
     }
 
     private void updateForPlayer(Player player) {
-        String title = plugin.getConfig().getString("BossBar.Title", "&bBienvenido a VeloTab");
-        float progress = (float) plugin.getConfig().getDouble("BossBar.Progress", 1.0);
-        String colorStr = plugin.getConfig().getString("BossBar.Color", "BLUE");
-        String overlayStr = plugin.getConfig().getString("BossBar.Overlay", "PROGRESS");
+        FileConfiguration config = plugin.getCustomConfig("bossbar");
+        String title = config.getString("Title", "&bBienvenido a VeloTab");
+        float progress = (float) config.getDouble("Progress", 1.0);
+        String colorStr = config.getString("Color", "BLUE");
+        String overlayStr = config.getString("Overlay", "PROGRESS");
 
         BossBar.Color color = parseColor(colorStr);
         BossBar.Overlay overlay = parseOverlay(overlayStr);

@@ -10,6 +10,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandMap;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -21,7 +22,7 @@ import java.util.Iterator;
 import java.util.Set;
 
 /**
- * Filtra comandos del autocompletado basándose estrictamente en permisos.
+ * Filtra comandos del autocompletado basándose estrictamente en permisos y configuración de seguridad.
  */
 public class TabCompleteListener implements Listener {
 
@@ -33,13 +34,14 @@ public class TabCompleteListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onCommandSend(PlayerCommandSendEvent event) {
-        if (!plugin.getConfig().getBoolean("Tab_Hide.enable", true)) return;
+        FileConfiguration config = plugin.getCustomConfig("security");
+        if (!config.getBoolean("Command_Hiding.Enable", true)) return;
 
         Player player = event.getPlayer();
-        if (player.hasPermission("velotab.bypass")) return;
+        if (player.hasPermission(config.getString("Command_Hiding.Bypass_Permission", "velotab.bypass"))) return;
 
-        Set<String> forceHide = getSet("Tab_Hide.force_hide");
-        Set<String> alwaysShow = getSet("Tab_Hide.always_show");
+        Set<String> forceHide = getSet("Command_Hiding.Force_Hide");
+        Set<String> alwaysShow = getSet("Command_Hiding.Always_Show");
         CommandMap commandMap = Bukkit.getCommandMap();
 
         Iterator<String> iterator = event.getCommands().iterator();
@@ -56,7 +58,6 @@ public class TabCompleteListener implements Listener {
             Command cmd = commandMap.getCommand(raw);
             if (cmd == null) cmd = commandMap.getCommand(base);
 
-            // Ocultar del TAB si no tiene permiso real.
             if (!hasPermission(player, cmd, raw, base)) {
                 iterator.remove();
             }
@@ -67,7 +68,10 @@ public class TabCompleteListener implements Listener {
     public void onTabComplete(AsyncTabCompleteEvent event) {
         if (!(event.getSender() instanceof Player)) return;
         Player player = (Player) event.getSender();
-        if (player.hasPermission("velotab.bypass")) return;
+        
+        FileConfiguration config = plugin.getCustomConfig("security");
+        if (!config.getBoolean("Command_Hiding.Enable", true)) return;
+        if (player.hasPermission(config.getString("Command_Hiding.Bypass_Permission", "velotab.bypass"))) return;
 
         String buffer = event.getBuffer();
         if (!buffer.startsWith("/")) return;
@@ -93,7 +97,6 @@ public class TabCompleteListener implements Listener {
                 return player.hasPermission(perm);
             }
             
-            // Si es un PluginCommand, intentamos adivinar el permiso por nombre del plugin
             if (cmd instanceof PluginCommand) {
                 String pluginName = ((PluginCommand) cmd).getPlugin().getName().toLowerCase();
                 return player.hasPermission(pluginName + ".command." + base) || 
@@ -101,18 +104,16 @@ public class TabCompleteListener implements Listener {
             }
         }
         
-        // Si el comando tiene prefijo (ej: minecraft:tp), comprobamos el permiso con punto
         if (raw.contains(":")) {
             return player.hasPermission(raw.replace(":", "."));
         }
         
-        // Por seguridad, si no podemos determinar el permiso, lo ocultamos.
         return player.isOp(); 
     }
 
     private Set<String> getSet(String path) {
         Set<String> set = new HashSet<>();
-        for (String s : plugin.getConfig().getStringList(path)) set.add(s.toLowerCase());
+        for (String s : plugin.getCustomConfig("security").getStringList(path)) set.add(s.toLowerCase());
         return set;
     }
 

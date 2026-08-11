@@ -71,7 +71,7 @@ public class VeloTabCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage("§8» §b/velotab info §8- §7Muestra información del plugin.");
         sender.sendMessage("§8» §b/velotab toggle §8- §7Muestra/Oculta tu Scoreboard.");
         if (sender.hasPermission("velotab.admin")) {
-            sender.sendMessage("§8» §b/velotab reload §8- §7Recarga la configuración.");
+            sender.sendMessage("§8» §b/velotab reload §8- §7Recarga toda la configuración.");
         }
     }
 

@@ -1,0 +1,7 @@
+# VeloTab - BossBar Configuration
+Enable: false
+Update_Interval: 40
+Title: "&b&l¡Bienvenido a nuestro servidor!"
+Progress: 1.0
+Color: "BLUE" # BLUE, GREEN, PINK, PURPLE, RED, WHITE, YELLOW
+Overlay: "PROGRESS" # PROGRESS, NOTCHED_6, NOTCHED_10, NOTCHED_12, NOTCHED_20

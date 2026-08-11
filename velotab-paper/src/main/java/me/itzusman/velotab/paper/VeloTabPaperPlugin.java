@@ -25,6 +25,8 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 
 public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessageListener {
 
@@ -39,14 +41,13 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
 
     private boolean placeholderApiPresent;
     private boolean luckPermsPresent;
-    private FileConfiguration langConfig;
-    private FileConfiguration animationsConfig;
+    
+    private final Map<String, FileConfiguration> configs = new HashMap<>();
 
     @Override
     public void onEnable() {
-        saveDefaultConfig();
-        loadLang();
-        loadAnimations();
+        // Cargar todas las configuraciones
+        loadAllConfigs();
 
         placeholderApiPresent = Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null;
         luckPermsPresent = Bukkit.getPluginManager().getPlugin("LuckPerms") != null;
@@ -71,7 +72,7 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
 
         registerEvents();
 
-        if (getConfig().getBoolean("network_sync.enable", true)) {
+        if (getCustomConfig("tablist").getBoolean("network_sync.enable", true)) {
             getServer().getMessenger().registerIncomingPluginChannel(this, Constants.SYNC_CHANNEL, this);
             getServer().getMessenger().registerOutgoingPluginChannel(this, Constants.SYNC_CHANNEL);
         }
@@ -100,26 +101,44 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
         getLogger().info("VeloTab se ha deshabilitado correctamente.");
     }
 
-    public void loadAnimations() {
-        File file = new File(getDataFolder(), "animations.yml");
-        if (!file.exists()) saveResource("animations.yml", false);
-        animationsConfig = YamlConfiguration.loadConfiguration(file);
+    public void loadAllConfigs() {
+        configs.clear();
+        String[] configFiles = {"tablist", "scoreboard", "bossbar", "actionbar", "chat", "security", "animations", "lang/es", "lang/en"};
+        for (String name : configFiles) {
+            loadCustomConfig(name);
+        }
         
+        // Registrar animaciones si el manager ya existe
         if (animationManager != null) {
             animationManager.clear();
-            if (animationsConfig.contains("animations")) {
-                for (String key : animationsConfig.getConfigurationSection("animations").getKeys(false)) {
-                    int interval = animationsConfig.getInt("animations." + key + ".interval", 20);
-                    java.util.List<String> frames = animationsConfig.getStringList("animations." + key + ".frames");
+            FileConfiguration animConfig = getCustomConfig("animations");
+            if (animConfig.contains("animations")) {
+                for (String key : animConfig.getConfigurationSection("animations").getKeys(false)) {
+                    int interval = animConfig.getInt("animations." + key + ".interval", 20);
+                    java.util.List<String> frames = animConfig.getStringList("animations." + key + ".frames");
                     animationManager.registerAnimation(key, frames, interval);
                 }
             }
         }
     }
 
+    private void loadCustomConfig(String name) {
+        File file = new File(getDataFolder(), name + ".yml");
+        if (!file.exists()) {
+            saveResource(name + ".yml", false);
+        }
+        configs.put(name.contains("/") ? name.substring(name.lastIndexOf("/") + 1) : name, 
+                    YamlConfiguration.loadConfiguration(file));
+    }
+
+    public FileConfiguration getCustomConfig(String name) {
+        return configs.getOrDefault(name, new YamlConfiguration());
+    }
+
     private void checkUpdates() {
-        boolean checkEnabled = getConfig().getBoolean("update_checker", true);
-        boolean autoUpdate = getConfig().getBoolean("auto_update", false);
+        FileConfiguration tabConfig = getCustomConfig("tablist");
+        boolean checkEnabled = tabConfig.getBoolean("update_checker", true);
+        boolean autoUpdate = tabConfig.getBoolean("auto_update", false);
 
         if (checkEnabled) {
             UpdateChecker checker = new UpdateChecker(Constants.VERSION);
@@ -164,9 +183,7 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
     }
 
     public void reloadPlugin() {
-        reloadConfig();
-        loadLang();
-        loadAnimations();
+        loadAllConfigs();
         
         HandlerList.unregisterAll(this);
         registerEvents();
@@ -193,25 +210,9 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
         reloadPlugin();
     }
 
-    public void loadLang() {
-        String lang = getConfig().getString("language", "es").toLowerCase();
-        File langDir = new File(getDataFolder(), "lang");
-        if (!langDir.exists()) langDir.mkdirs();
-        
-        File langFile = new File(langDir, lang + ".yml");
-        if (!langFile.exists()) {
-            saveResource("lang/es.yml", false);
-            saveResource("lang/en.yml", false);
-        }
-        
-        langConfig = YamlConfiguration.loadConfiguration(langFile);
-        InputStream defLangStream = getResource("lang/" + lang + ".yml");
-        if (defLangStream != null) {
-            langConfig.setDefaults(YamlConfiguration.loadConfiguration(new InputStreamReader(defLangStream, StandardCharsets.UTF_8)));
-        }
-    }
-
     public String getLangMessage(String path) {
+        String lang = getCustomConfig("tablist").getString("language", "es").toLowerCase();
+        FileConfiguration langConfig = getCustomConfig(lang);
         String msg = langConfig.getString(path, "Message missing: " + path);
         return ChatColor.translateAlternateColorCodes('&', msg);
     }

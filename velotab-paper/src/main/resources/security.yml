@@ -1,0 +1,20 @@
+# VeloTab - Security Configuration
+
+# Ocultación de comandos del autocompletado (TAB)
+Command_Hiding:
+  Enable: true
+  Bypass_Permission: "velotab.bypass"
+  
+  # Comandos que NUNCA se mostrarán (ni siquiera a OPs)
+  Force_Hide:
+    - "pl"
+    - "plugins"
+    - "ver"
+    - "version"
+    - "about"
+  
+  # Comandos que SIEMPRE se mostrarán independientemente de los permisos
+  Always_Show:
+    - "help"
+    - "spawn"
+    - "msg"

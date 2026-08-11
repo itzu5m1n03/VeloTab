@@ -13,6 +13,7 @@ import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.model.user.User;
 import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Bukkit;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scoreboard.DisplaySlot;
@@ -48,7 +49,8 @@ public class DisplayManager {
 
     public void start() {
         stop();
-        int interval = plugin.getConfig().getInt("TabList.Update_Interval", 20);
+        FileConfiguration tabConfig = plugin.getCustomConfig("tablist");
+        int interval = tabConfig.getInt("Update_Interval", 20);
         updateTask = new BukkitRunnable() {
             @Override
             public void run() {
@@ -81,10 +83,11 @@ public class DisplayManager {
     }
 
     private void updateTabList(Player player) {
-        if (!plugin.getConfig().getBoolean("TabList.Enable", true)) return;
+        FileConfiguration tabConfig = plugin.getCustomConfig("tablist");
+        if (!tabConfig.getBoolean("Enable", true)) return;
 
-        List<String> headerLines = plugin.getConfig().getStringList("TabList.Header");
-        List<String> footerLines = plugin.getConfig().getStringList("TabList.Footer");
+        List<String> headerLines = tabConfig.getStringList("Header");
+        List<String> footerLines = tabConfig.getStringList("Footer");
 
         player.sendPlayerListHeaderAndFooter(
                 buildComponent(player, headerLines),
@@ -95,6 +98,7 @@ public class DisplayManager {
     }
 
     private void applyGlobalSorting(Player viewer) {
+        FileConfiguration tabConfig = plugin.getCustomConfig("tablist");
         Scoreboard board = viewer.getScoreboard();
         if (board == Bukkit.getScoreboardManager().getMainScoreboard()) {
             board = Bukkit.getScoreboardManager().getNewScoreboard();
@@ -107,12 +111,10 @@ public class DisplayManager {
         }
 
         for (Player target : Bukkit.getOnlinePlayers()) {
-            // 1. Manejo de Vanish: Si el objetivo esta en vanish y el espectador no es OP, ocultar.
             if (plugin.getHookManager().isVanished(target) && !viewer.isOp()) {
                 viewer.hidePlayer(plugin, target);
                 continue;
             } else if (!target.canSee(viewer)) {
-                // Asegurar que si ya no esta en vanish, se vea.
                 viewer.showPlayer(plugin, target);
             }
 
@@ -122,11 +124,10 @@ public class DisplayManager {
                 try {
                     User user = lp.getUserManager().getUser(target.getUniqueId());
                     group = (user != null) ? user.getPrimaryGroup() : "default";
-                    priority = plugin.getConfig().getString("Sorting.Groups." + group, "99");
+                    priority = tabConfig.getString("Sorting.Groups." + group, "99");
                 } catch (Exception ignored) {}
             }
 
-            // Team de ordenacion basado en prioridad
             String teamName = SORTING_TEAM_PREFIX + priority + group;
             if (teamName.length() > 16) teamName = teamName.substring(0, 16);
 
@@ -142,15 +143,13 @@ public class DisplayManager {
                 team.addEntry(target.getName());
             }
 
-            // 2. Manejo de AFK en el nombre del Tab
             String displayName = target.getName();
             if (plugin.getHookManager().isAFK(target)) {
-                displayName = plugin.getConfig().getString("TabList.AFK_Format", "&7[AFK] ") + displayName;
+                displayName = tabConfig.getString("AFK_Format", "&7[AFK] ") + displayName;
             }
             
-            // 3. Deteccion de Bedrock
             if (plugin.getHookManager().isBedrock(target)) {
-                displayName = plugin.getConfig().getString("TabList.Bedrock_Prefix", "&7[BE] ") + displayName;
+                displayName = tabConfig.getString("Bedrock_Prefix", "&7[BE] ") + displayName;
             }
 
             target.playerListName(buildComponent(target, displayName));
@@ -158,7 +157,8 @@ public class DisplayManager {
     }
 
     private void updateTabObjectives(Player player) {
-        String type = plugin.getConfig().getString("TabList.Objective.Type", "NONE").toUpperCase();
+        FileConfiguration tabConfig = plugin.getCustomConfig("tablist");
+        String type = tabConfig.getString("Objective.Type", "NONE").toUpperCase();
         if (type.equals("NONE")) return;
 
         Scoreboard board = player.getScoreboard();
@@ -182,7 +182,8 @@ public class DisplayManager {
     }
 
     private void updateScoreboard(Player player) {
-        if (!plugin.getConfig().getBoolean("Scoreboard.Enable", true)) return;
+        FileConfiguration sbConfig = plugin.getCustomConfig("scoreboard");
+        if (!sbConfig.getBoolean("Enable", true)) return;
         if (!scoreboardVisibility.getOrDefault(player.getUniqueId(), true)) return;
 
         Scoreboard board = player.getScoreboard();
@@ -193,15 +194,15 @@ public class DisplayManager {
 
         Objective obj = board.getObjective("velotab_sb");
         if (obj == null) {
-            String title = plugin.getConfig().getString("Scoreboard.Title", "&bVeloTab");
+            String title = sbConfig.getString("Title", "&bVeloTab");
             obj = board.registerNewObjective("velotab_sb", "dummy", buildComponent(player, title));
             obj.setDisplaySlot(DisplaySlot.SIDEBAR);
         } else {
-            String title = plugin.getConfig().getString("Scoreboard.Title", "&bVeloTab");
+            String title = sbConfig.getString("Title", "&bVeloTab");
             obj.displayName(buildComponent(player, title));
         }
 
-        List<String> lines = plugin.getConfig().getStringList("Scoreboard.Lines");
+        List<String> lines = sbConfig.getStringList("Lines");
         int size = lines.size();
 
         for (int i = 0; i < size; i++) {
@@ -229,18 +230,11 @@ public class DisplayManager {
 
     public Component buildComponent(Player player, String text) {
         if (text == null || text.isEmpty()) return Component.empty();
-
-        // 1. Procesar Animaciones {anim:name}
         text = processAnimations(text);
-
-        // 2. Resolver Placeholders (con cache opcional)
         if (plugin.isPlaceholderApiPresent()) {
             text = PlaceholderAPI.setPlaceholders(player, text);
         }
-
-        // 3. Colorear (Legacy + Hex)
         String coloredText = ColorUtil.colorize(text);
-
         return legacySerializer.deserialize(coloredText);
     }
 

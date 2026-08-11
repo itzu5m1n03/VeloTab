@@ -1,0 +1,49 @@
+# VeloTab - Chat Configuration
+Enable: true
+
+# Formato de Chat
+Format:
+  Default_Format: '&8[%luckperms_prefix%&8] &7{player} &8» &7{message}'
+  Player_Hover: |-
+    &eInformacion de &b%player_name%&7:
+    &fRango: %luckperms_prefix%
+    &fPing: &a%player_ping%ms
+    &7Haz click para enviarle un mensaje.
+  Groups:
+    admin: '&8[&cADMIN&8] %luckperms_prefix%&7{player} &8» &f{message}'
+    user: '&8[&7USER&8] &7{player} &8» &7{message}'
+
+# Protección de Chat
+Protection:
+  # AntiSpam: Cooldown entre mensajes en segundos
+  AntiSpam:
+    Enable: true
+    Cooldown: 3
+    Bypass_Permission: "velotab.chat.bypass.spam"
+    Message: "&c¡No tan rápido! Espera {time}s para volver a escribir."
+
+  # AntiSwear: Bloqueo de palabras prohibidas
+  AntiSwear:
+    Enable: true
+    Bypass_Permission: "velotab.chat.bypass.swear"
+    Message: "&c¡Tu mensaje contiene palabras no permitidas!"
+    # Lista de palabras (puedes usar regex)
+    Blocked_Words:
+      - "palabrota1"
+      - "palabrota2"
+      - "mierda"
+      - "pendejo"
+
+  # Caps Blocker: Bloqueo de exceso de mayúsculas
+  Caps_Blocker:
+    Enable: true
+    Min_Length: 5
+    Max_Percentage: 70
+    Bypass_Permission: "velotab.chat.bypass.caps"
+    Message: "&c¡No escribas tanto en mayúsculas!"
+
+  # Repeat Blocker: Evitar el mismo mensaje seguido
+  Repeat_Blocker:
+    Enable: true
+    Bypass_Permission: "velotab.chat.bypass.repeat"
+    Message: "&c¡No repitas el mismo mensaje!"

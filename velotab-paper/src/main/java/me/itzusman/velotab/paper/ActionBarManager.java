@@ -7,6 +7,7 @@ package me.itzusman.velotab.paper;
 
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
@@ -21,13 +22,14 @@ public class ActionBarManager {
 
     public void start() {
         stop();
-        if (!plugin.getConfig().getBoolean("ActionBar.Enable", false)) return;
+        FileConfiguration config = plugin.getCustomConfig("actionbar");
+        if (!config.getBoolean("Enable", false)) return;
 
-        int interval = plugin.getConfig().getInt("ActionBar.Update_Interval", 20);
+        int interval = config.getInt("Update_Interval", 20);
         updateTask = new BukkitRunnable() {
             @Override
             public void run() {
-                String text = plugin.getConfig().getString("ActionBar.Text", "&7Ping: &a%player_ping%ms");
+                String text = config.getString("Text", "&7Ping: &a%player_ping%ms");
                 for (Player player : Bukkit.getOnlinePlayers()) {
                     Component comp = plugin.getDisplayManager().buildComponent(player, text);
                     player.sendActionBar(comp);

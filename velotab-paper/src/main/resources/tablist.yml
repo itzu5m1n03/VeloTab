@@ -1,0 +1,37 @@
+# VeloTab - TabList Configuration
+Enable: true
+Update_Interval: 20
+
+Header:
+  - ""
+  - "  {anim:server_name}  "
+  - "&7Conectados: &b%server_online% &8| &7TPS: &b%server_tps%  "
+  - ""
+
+Footer:
+  - ""
+  - "{anim:rainbow_footer}"
+  - "&8tienda.lobomax.xyz"
+  - ""
+
+# Formato para jugadores AFK (Requiere EssentialsX)
+AFK_Format: "&7[AFK] "
+
+# Prefijo para jugadores de Bedrock (Requiere Geyser)
+Bedrock_Prefix: "&7[BE] "
+
+# Objetivo en el Tab (Derecha del nombre)
+# Tipos: NONE, HEALTH, PING
+Objective:
+  Type: "PING"
+
+# Ordenación de jugadores
+Sorting:
+  Enable: true
+  Groups:
+    fundador: "01"
+    admin: "02"
+    mod: "03"
+    vip: "04"
+    user: "05"
+    default: "99"

@@ -1,0 +1,18 @@
+# VeloTab - Scoreboard Configuration
+Enable: true
+Title: "{anim:server_name}"
+Update_Interval: 20
+
+Lines:
+  - "&8&m-------------------"
+  - "&fNombre: &b%player_name%"
+  - "&fRango: &b%luckperms_prefix%"
+  - ""
+  - "&fAsesinatos: &b%statistic_player_kills%"
+  - "&fMuertes: &b%statistic_deaths%"
+  - ""
+  - "&fLatencia: &b%player_ping%ms"
+  - "&fConectados: &b%server_online%"
+  - ""
+  - "&b  lobomax.xyz"
+  - "&8&m-------------------"

@@ -1,0 +1,4 @@
+# VeloTab - ActionBar Configuration
+Enable: false
+Update_Interval: 20
+Text: "&7Coordenadas: &f%player_x%, %player_y%, %player_z% &8| &7Mundo: &f%player_world%"
