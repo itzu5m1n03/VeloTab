@@ -1,10 +1,13 @@
+VeloTab Custom License
+
 Copyright (c) 2026 ItzUsman (https://itzusm.netlify.app)
 
-Por la presente se concede permiso, de forma gratuita, a cualquier persona que obtenga una copia de este software (el "Software"), para utilizar el Software sin restricciones, incluyendo, sin limitación, los derechos de uso, copia y ejecución.
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to use the Software for personal or server use, including the rights to use, copy, and run the Software.
 
-QUEDA ESTRICTAMENTE PROHIBIDO:
-1. Modificar el nombre del autor, el nombre del plugin o los enlaces oficiales dentro del código fuente o el archivo compilado.
-2. Redistribuir versiones modificadas del Software bajo otro nombre (Rebranding).
-3. Vender el Software o cobrar por su acceso.
+RESTRICTIONS:
+1. Modification of the author's name, the plugin's name, or official links within the source code or the compiled file is STRICTLY PROHIBITED.
+2. Redistribution of modified versions of the Software under a different name (Rebranding) is STRICTLY PROHIBITED.
+3. Selling the Software or charging for access to it is STRICTLY PROHIBITED.
+4. Any redistribution of the original or modified Software must include this license and credit the original author (ItzUsman).
 
-EL SOFTWARE SE PROPORCIONA "TAL CUAL", SIN GARANTÍA DE NINGÚN TIPO, EXPRESA O IMPLÍCITA. EN NINGÚN CASO LOS AUTORES O TITULARES DE LOS DERECHOS DE AUTOR SERÁN RESPONSABLES DE NINGUNA RECLAMACIÓN, DAÑOS U OTRA RESPONSABILIDAD.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

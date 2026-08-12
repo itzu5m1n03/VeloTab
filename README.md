@@ -64,3 +64,12 @@ VeloTab detecta automáticamente tu entorno y activa las funciones correspondien
 Este proyecto es propiedad exclusiva de **ItzUsman**.
 - **Sitio Web:** [https://itzusm.netlify.app/](https://itzusm.netlify.app/)
 - **GitHub:** [VeloTab Repository](https://github.com/itzu5m1n03/VeloTab)
+
+---
+
+## 🔒 Seguridad y Transparencia
+VeloTab ha sido diseñado con la seguridad y el rendimiento como prioridades:
+- **Sin Conexiones Ocultas:** Las únicas conexiones externas son los Webhooks de Discord (configurables por el usuario) y las actualizaciones de PlaceholderAPI.
+- **Uso de ProtocolLib:** Se utiliza exclusivamente para la manipulación segura de paquetes de Nametags, garantizando compatibilidad sin interferir con otros plugins.
+- **Código Abierto:** Todo el código fuente está disponible para auditoría en este repositorio.
+- **Sin Ofuscación:** El plugin no utiliza técnicas de ofuscación para garantizar la máxima transparencia ante la comunidad y los moderadores.
