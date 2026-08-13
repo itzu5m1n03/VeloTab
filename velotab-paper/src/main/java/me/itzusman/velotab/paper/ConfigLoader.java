@@ -47,6 +47,8 @@ public class ConfigLoader {
         loadModuleConfig("security", "discord_webhooks.yml");
         
         loadModuleConfig("animations", "animations.yml");
+        loadModuleConfig("bossbar", "bossbar.yml");
+        loadModuleConfig("actionbar", "actionbar.yml");
         
         // Idiomas
         loadModuleConfig("lang", "es.yml");
