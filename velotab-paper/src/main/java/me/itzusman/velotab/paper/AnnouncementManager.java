@@ -20,6 +20,7 @@ public class AnnouncementManager {
     private final VeloTabPaperPlugin plugin;
     private BukkitRunnable task;
     private final Random random = new Random();
+    private int currentIndex = 0;
 
     public AnnouncementManager(VeloTabPaperPlugin plugin) {
         this.plugin = plugin;
@@ -55,9 +56,13 @@ public class AnnouncementManager {
         List<String> keys = new ArrayList<>(section.getKeys(false));
         if (keys.isEmpty()) return;
 
-        String key = config.getBoolean("random", true) 
-                ? keys.get(random.nextInt(keys.size())) 
-                : keys.get(0);
+        String key;
+        if (config.getBoolean("random", true)) {
+            key = keys.get(random.nextInt(keys.size()));
+        } else {
+            if (currentIndex >= keys.size()) currentIndex = 0;
+            key = keys.get(currentIndex++);
+        }
 
         List<String> lines = section.getStringList(key);
         for (Player player : Bukkit.getOnlinePlayers()) {

@@ -58,19 +58,30 @@ public class DisplayManager {
     public void start() {
         stop();
         FileConfiguration tabConfig = plugin.getConfigLoader().get("tablist/tablist");
-        int interval = tabConfig.getInt("Update_Interval", 20);
+        int tabInterval = tabConfig.getInt("Update_Interval", 20);
+        
         updateTask = new BukkitRunnable() {
             @Override
             public void run() {
                 currentTicks++;
+                
+                // Animaciones y efectos se procesan cada tick si es necesario,
+                // pero las actualizaciones pesadas se distribuyen.
                 for (Player player : Bukkit.getOnlinePlayers()) {
-                    updateTabList(player);
-                    updateScoreboard(player);
-                    updateTabObjectives(player);
+                    // Scoreboard cada 2 ticks (suficiente para la mayoría de animaciones)
+                    if (currentTicks % 2 == 0) {
+                        updateScoreboard(player);
+                    }
+                    
+                    // TabList según configuración (default 20 ticks)
+                    if (currentTicks % tabInterval == 0) {
+                        updateTabList(player);
+                        updateTabObjectives(player);
+                    }
                 }
             }
         };
-        updateTask.runTaskTimer(plugin, 0L, 1L); // Correr cada tick para animaciones fluidas
+        updateTask.runTaskTimer(plugin, 0L, 1L);
     }
 
     public void stop() {
@@ -122,7 +133,6 @@ public class DisplayManager {
     private void applyGlobalSorting(Player viewer) {
         FileConfiguration tabConfig = plugin.getConfigLoader().get("tablist/tablist");
         FileConfiguration groupsConfig = plugin.getConfigLoader().get("tablist/groups");
-        FileConfiguration separatorsConfig = plugin.getConfigLoader().get("tablist/separators");
         
         Scoreboard board = viewer.getScoreboard();
         if (board == Bukkit.getScoreboardManager().getMainScoreboard()) {
@@ -135,12 +145,13 @@ public class DisplayManager {
             try { lp = LuckPermsProvider.get(); } catch (Exception ignored) {}
         }
 
+        boolean layeringEnabled = tabConfig.getBoolean("Name_Layering.Enable", true);
+
         for (Player target : Bukkit.getOnlinePlayers()) {
+            // Manejo de Vanish
             if (plugin.getHookManager().isVanished(target) && !viewer.isOp()) {
                 viewer.hidePlayer(plugin, target);
                 continue;
-            } else if (!target.canSee(viewer)) {
-                viewer.showPlayer(plugin, target);
             }
 
             String priority = "99";
@@ -153,42 +164,56 @@ public class DisplayManager {
                 } catch (Exception ignored) {}
             }
 
-            String teamName = SORTING_TEAM_PREFIX + priority + group;
-            if (separatorsConfig.getBoolean("enable", false)) {
-                ConfigurationSection cats = separatorsConfig.getConfigurationSection("categories");
-                if (cats != null) {
-                    for (String cat : cats.getKeys(false)) {
-                        if (cats.getStringList(cat + ".groups").contains(group)) {
-                            teamName = SORTING_TEAM_PREFIX + cats.getString(cat + ".priority") + "_" + cat + "_" + priority;
-                            break;
-                        }
-                    }
-                }
-            }
-
+            // TEAM UNICO por jugador para evitar el bug de Name_Layering compartido.
+            // Usamos el hash del UUID para garantizar unicidad pero mantener consistencia.
+            String uniqueId = Integer.toHexString(target.getUniqueId().hashCode());
+            String teamName = SORTING_TEAM_PREFIX + priority + "_" + uniqueId;
             if (teamName.length() > 16) teamName = teamName.substring(0, 16);
 
             Team team = board.getTeam(teamName);
             if (team == null) team = board.registerNewTeam(teamName);
 
             if (!team.hasEntry(target.getName())) {
+                // Limpiar al jugador de otros equipos de sorting anteriores
                 for (Team t : board.getTeams()) {
-                    if (t.getName().startsWith(SORTING_TEAM_PREFIX) && t.hasEntry(target.getName())) {
+                    if (t.getName().startsWith(SORTING_TEAM_PREFIX) && t.hasEntry(target.getName()) && !t.getName().equals(teamName)) {
                         t.removeEntry(target.getName());
                     }
                 }
                 team.addEntry(target.getName());
             }
 
-            String displayName = target.getName();
-            if (plugin.getHookManager().isAFK(target)) {
-                displayName = tabConfig.getString("AFK_Format", "&7[AFK] ") + displayName;
-            }
-            if (plugin.getHookManager().isBedrock(target)) {
-                displayName = tabConfig.getString("Bedrock_Prefix", "&7[BE] ") + displayName;
-            }
+            // Aplicar Name_Layering (Prefix/Suffix en el nombre del jugador)
+            if (layeringEnabled) {
+                String up = tabConfig.getString("Name_Layering.UpName", "");
+                String down = tabConfig.getString("Name_Layering.DownName", "");
+                String center = tabConfig.getString("Name_Layering.CenterName", "{player}");
 
-            target.playerListName(buildComponent(target, displayName));
+                // Prefix (UpName)
+                if (!up.isEmpty()) {
+                    team.prefix(buildComponent(target, up + " "));
+                } else {
+                    team.prefix(Component.empty());
+                }
+
+                // Suffix (DownName)
+                if (!down.isEmpty()) {
+                    team.suffix(buildComponent(target, " " + down));
+                } else {
+                    team.suffix(Component.empty());
+                }
+                
+                // CenterName (Nombre en el Tab)
+                String centerName = center.replace("{player}", target.getName());
+                if (plugin.getHookManager().isAFK(target)) {
+                    centerName = tabConfig.getString("AFK_Format", "&7[AFK] ") + centerName;
+                }
+                target.playerListName(buildComponent(target, centerName));
+            } else {
+                team.prefix(Component.empty());
+                team.suffix(Component.empty());
+                target.playerListName(null); // Reset to default
+            }
         }
     }
 

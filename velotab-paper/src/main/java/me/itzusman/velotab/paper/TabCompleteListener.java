@@ -22,7 +22,8 @@ import java.util.Iterator;
 import java.util.Set;
 
 /**
- * Filtra comandos del autocompletado basándose estrictamente en permisos y configuración de seguridad.
+ * Filtra comandos del autocompletado basándose en permisos reales.
+ * Oculta comandos, no los bloquea, permitiendo que el servidor maneje la ejecución.
  */
 public class TabCompleteListener implements Listener {
 
@@ -74,12 +75,9 @@ public class TabCompleteListener implements Listener {
         if (player.hasPermission(config.getString("Command_Hiding.Bypass_Permission", "velotab.bypass"))) return;
 
         String buffer = event.getBuffer();
-        if (!buffer.startsWith("/")) return;
+        if (!buffer.startsWith("/") || buffer.contains(" ")) return;
 
-        String[] args = buffer.substring(1).split(" ");
-        if (args.length == 0) return;
-
-        String raw = args[0];
+        String raw = buffer.substring(1).toLowerCase();
         String base = stripPrefix(raw).toLowerCase();
 
         Command cmd = Bukkit.getCommandMap().getCommand(raw);
@@ -92,18 +90,28 @@ public class TabCompleteListener implements Listener {
 
     private boolean hasPermission(Player player, Command cmd, String raw, String base) {
         if (cmd != null) {
-            String perm = cmd.getPermission();
-            if (perm != null && !perm.isEmpty()) {
-                return player.hasPermission(perm);
+            // 1. Probar permiso oficial del comando
+            if (!cmd.testPermissionSilent(player)) return false;
+
+            // 2. Si no tiene permiso definido, es de un plugin y el jugador no es OP, 
+            // comprobamos permisos genéricos de plugin para mayor seguridad.
+            if (cmd.getPermission() == null || cmd.getPermission().isEmpty()) {
+                if (cmd instanceof PluginCommand) {
+                    String pluginName = ((PluginCommand) cmd).getPlugin().getName().toLowerCase();
+                    // Si el plugin es "minecraft" o "bukkit", solemos permitir si no hay permiso explícito
+                    if (pluginName.equals("minecraft") || pluginName.equals("bukkit")) return true;
+                    
+                    // Para otros plugins, si el jugador no es OP, ocultamos por defecto
+                    // a menos que tenga permisos específicos de ese plugin.
+                    return player.isOp() || 
+                           player.hasPermission(pluginName + ".command." + base) || 
+                           player.hasPermission(pluginName + "." + base);
+                }
             }
-            
-            if (cmd instanceof PluginCommand) {
-                String pluginName = ((PluginCommand) cmd).getPlugin().getName().toLowerCase();
-                return player.hasPermission(pluginName + ".command." + base) || 
-                       player.hasPermission(pluginName + "." + base);
-            }
+            return true;
         }
         
+        // Comandos con namespace (ej: minecraft:tp)
         if (raw.contains(":")) {
             return player.hasPermission(raw.replace(":", "."));
         }
