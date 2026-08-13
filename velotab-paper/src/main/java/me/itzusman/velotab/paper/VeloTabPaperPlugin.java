@@ -81,7 +81,9 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
         }
         
         this.nametagManager = new NametagManager(this);
-        this.nametagManager.start();
+        if (Bukkit.getPluginManager().getPlugin("ProtocolLib") != null) {
+            this.nametagManager.start();
+        }
         
         this.menuManager = new MenuManager(this);
 
@@ -174,6 +176,7 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
         getServer().getPluginManager().registerEvents(tabCompleteListener, this);
         getServer().getPluginManager().registerEvents(chatFormatListener, this);
         getServer().getPluginManager().registerEvents(menuManager, this);
+        getServer().getPluginManager().registerEvents(new PlayerQuitListener(this), this);
     }
 
     public void reloadPlugin() {
@@ -182,6 +185,10 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
         
         HandlerList.unregisterAll(this);
         registerEvents();
+
+        if (getConfig().getBoolean("network_sync.enable", true)) {
+            getServer().sendPluginMessage(this, Constants.SYNC_CHANNEL, new byte[0]);
+        }
         
         if (displayManager != null) {
             displayManager.stop();
@@ -225,4 +232,6 @@ public final class VeloTabPaperPlugin extends JavaPlugin implements PluginMessag
     public ConfigLoader getConfigLoader() { return configLoader; }
     public DatabaseManager getDatabaseManager() { return databaseManager; }
     public MenuManager getMenuManager() { return menuManager; }
+    public ChatFormatListener getChatFormatListener() { return chatFormatListener; }
+    public BossBarManager getBossBarManager() { return bossBarManager; }
 }

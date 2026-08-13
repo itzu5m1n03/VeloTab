@@ -31,7 +31,7 @@ public class VeloTabVelocityPlugin {
     private final ProxyServer server;
     private final Logger logger;
     private final Path dataDirectory;
-    private VelocityConfigLoader configLoader;
+    private VeloTabConfig config;
     public static final MinecraftChannelIdentifier SYNC_CHANNEL = MinecraftChannelIdentifier.from(Constants.SYNC_CHANNEL);
 
     @Inject
@@ -43,14 +43,36 @@ public class VeloTabVelocityPlugin {
 
     @Subscribe
     public void onProxyInitialize(ProxyInitializeEvent event) {
-        this.configLoader = new VelocityConfigLoader(dataDirectory);
-        this.configLoader.loadAll();
+        this.config = new VeloTabConfig(dataDirectory, logger);
+        this.config.load();
 
-        server.getEventManager().register(this, new TabFilterListener(configLoader));
+        server.getEventManager().register(this, new TabFilterListener(config));
         server.getChannelRegistrar().register(SYNC_CHANNEL);
+        
+        server.getCommandManager().register(
+            server.getCommandManager().metaBuilder("vtreload").build(),
+            new VelocityReloadCommand(this)
+        );
 
         IntegrityCheck.printBranding(java.util.logging.Logger.getLogger("VeloTab"));
-        logger.info("VeloTab v{} (Velocity) habilitado en modo modular.", Constants.VERSION);
+        logger.info("VeloTab v{} (Velocity) habilitado.", Constants.VERSION);
+    }
+
+    @Subscribe
+    public void onPluginMessage(com.velocitypowered.api.event.connection.PluginMessageEvent event) {
+        if (!event.getIdentifier().equals(SYNC_CHANNEL)) return;
+        reload();
+    }
+
+    public void reload() {
+        config.load();
+        byte[] data = new byte[0];
+        server.getAllServers().forEach(s -> s.sendPluginMessage(SYNC_CHANNEL, data));
+        logger.info("Configuración recargada y señal de sincronización enviada a todos los servidores.");
+    }
+
+    public VeloTabConfig getConfig() {
+        return config;
     }
 
     @Subscribe

@@ -98,6 +98,10 @@ public class DisplayManager {
         if (current) player.getScoreboard().clearSlot(DisplaySlot.SIDEBAR);
     }
 
+    public void removePlayer(Player player) {
+        scoreboardVisibility.remove(player.getUniqueId());
+    }
+
     private void updateTabList(Player player) {
         FileConfiguration tabConfig = plugin.getConfigLoader().get("tablist/tablist");
         if (!tabConfig.getBoolean("Enable", true)) return;

@@ -5,6 +5,7 @@
  */
 package me.itzusman.velotab.bungee;
 
+import me.itzusman.velotab.common.Constants;
 import me.itzusman.velotab.common.IntegrityCheck;
 import net.md_5.bungee.api.plugin.Plugin;
 import net.md_5.bungee.config.Configuration;
@@ -28,9 +29,25 @@ public class VeloTabBungeePlugin extends Plugin {
     public void onEnable() {
         loadConfig();
         getProxy().getPluginManager().registerListener(this, new TabFilterBungee(this));
+        getProxy().getPluginManager().registerCommand(this, new BungeeReloadCommand(this));
+        
+        getProxy().registerChannel(Constants.SYNC_CHANNEL);
         
         IntegrityCheck.printBranding(getLogger());
         getLogger().info("VeloTab (Bungee/Waterfall) habilitado.");
+    }
+
+    public void reload() {
+        loadConfig();
+        byte[] data = new byte[0];
+        getProxy().getServers().values().forEach(s -> s.sendData(Constants.SYNC_CHANNEL, data));
+        getLogger().info("Configuración recargada y señal de sincronización enviada a todos los servidores.");
+    }
+
+    @net.md_5.bungee.event.EventHandler
+    public void onPluginMessage(net.md_5.bungee.api.event.PluginMessageEvent event) {
+        if (!event.getTag().equals(Constants.SYNC_CHANNEL)) return;
+        reload();
     }
 
     @Override

@@ -41,7 +41,6 @@ public class ChatFormatListener implements Listener {
             .build();
 
     private final Map<UUID, Long> lastMessageTime = new HashMap<>();
-    private final Map<UUID, String> lastMessageContent = new HashMap<>();
 
     public ChatFormatListener(VeloTabPaperPlugin plugin, boolean placeholderApiPresent) {
         this.plugin = plugin;
@@ -212,5 +211,9 @@ public class ChatFormatListener implements Listener {
             } catch (Exception ignored) {}
         }
         return config.getString("Format.Default_Format", "&8[%luckperms_prefix%&8] &7{player} &8» &7{message}");
+    }
+
+    public void removePlayer(Player player) {
+        lastMessageTime.remove(player.getUniqueId());
     }
 }

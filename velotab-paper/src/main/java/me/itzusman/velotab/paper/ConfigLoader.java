@@ -56,16 +56,23 @@ public class ConfigLoader {
     }
 
     private void loadModuleConfig(String folder, String fileName) {
-        File dir = new File(plugin.getDataFolder(), folder);
-        if (!dir.exists()) dir.mkdirs();
-        
-        File file = new File(dir, fileName);
-        if (!file.exists()) {
-            plugin.saveResource(folder + "/" + fileName, false);
-        }
-        
         String key = folder + "/" + fileName.replace(".yml", "");
-        configs.put(key, YamlConfiguration.loadConfiguration(file));
+        try {
+            File dir = new File(plugin.getDataFolder(), folder);
+            if (!dir.exists()) dir.mkdirs();
+            
+            File file = new File(dir, fileName);
+            if (!file.exists()) {
+                plugin.saveResource(folder + "/" + fileName, false);
+            }
+            
+            YamlConfiguration config = new YamlConfiguration();
+            config.load(file);
+            configs.put(key, config);
+        } catch (Exception e) {
+            plugin.getLogger().severe("Error crítico al cargar " + folder + "/" + fileName + ": " + e.getMessage());
+            configs.put(key, new YamlConfiguration());
+        }
     }
 
     public FileConfiguration get(String path) {
