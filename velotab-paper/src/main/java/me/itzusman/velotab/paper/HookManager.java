@@ -8,19 +8,16 @@ package me.itzusman.velotab.paper;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.metadata.MetadataValue;
-import org.geysermc.geyser.api.GeyserApi;
-import com.earth2me.essentials.Essentials;
-import com.earth2me.essentials.IUser;
-
-import java.util.UUID;
+import org.bukkit.plugin.Plugin;
 
 /**
- * Centraliza las comprobaciones de otros plugins.
+ * Centraliza las comprobaciones de otros plugins de forma segura.
+ * Evita errores de NoClassDefFoundError al no importar directamente las clases si el plugin no existe.
  */
 public class HookManager {
 
     private final VeloTabPaperPlugin plugin;
-    private Essentials essentials;
+    private boolean essentialsPresent;
     private boolean geyserPresent;
 
     public HookManager(VeloTabPaperPlugin plugin) {
@@ -28,15 +25,12 @@ public class HookManager {
     }
 
     public void init() {
-        if (Bukkit.getPluginManager().getPlugin("Essentials") != null) {
-            essentials = (Essentials) Bukkit.getPluginManager().getPlugin("Essentials");
-        }
+        essentialsPresent = Bukkit.getPluginManager().getPlugin("Essentials") != null;
         geyserPresent = Bukkit.getPluginManager().getPlugin("Geyser-Spigot") != null;
     }
 
     /**
      * Comprueba si un jugador está en modo Vanish.
-     * Soporta Essentials, SuperVanish, PremiumVanish y VanishNoPacket.
      */
     public boolean isVanished(Player player) {
         // Bukkit Metadata (Estándar para la mayoría de plugins de Vanish)
@@ -44,10 +38,11 @@ public class HookManager {
             if (meta.asBoolean()) return true;
         }
 
-        // EssentialsX
-        if (essentials != null) {
-            IUser user = essentials.getUser(player);
-            if (user != null && user.isVanished()) return true;
+        // EssentialsX (Llamada segura)
+        if (essentialsPresent) {
+            try {
+                return EssentialsWrapper.isVanished(player);
+            } catch (NoClassDefFoundError | Exception ignored) {}
         }
 
         return false;
@@ -57,9 +52,10 @@ public class HookManager {
      * Comprueba si un jugador está AFK (EssentialsX).
      */
     public boolean isAFK(Player player) {
-        if (essentials != null) {
-            IUser user = essentials.getUser(player);
-            return user != null && user.isAfk();
+        if (essentialsPresent) {
+            try {
+                return EssentialsWrapper.isAFK(player);
+            } catch (NoClassDefFoundError | Exception ignored) {}
         }
         return false;
     }
@@ -70,10 +66,41 @@ public class HookManager {
     public boolean isBedrock(Player player) {
         if (geyserPresent) {
             try {
-                return GeyserApi.api().isBedrockPlayer(player.getUniqueId());
-            } catch (Exception ignored) {}
+                return GeyserWrapper.isBedrock(player);
+            } catch (NoClassDefFoundError | Exception ignored) {}
         }
-        // Fallback: Prefijo común en nombres de Bedrock (configurable)
         return player.getName().startsWith(".");
+    }
+
+    /**
+     * Clase interna para aislar las dependencias de EssentialsX.
+     */
+    private static class EssentialsWrapper {
+        private static boolean isVanished(Player player) {
+            Plugin plugin = Bukkit.getPluginManager().getPlugin("Essentials");
+            if (plugin instanceof com.earth2me.essentials.Essentials) {
+                com.earth2me.essentials.IUser user = ((com.earth2me.essentials.Essentials) plugin).getUser(player);
+                return user != null && user.isVanished();
+            }
+            return false;
+        }
+
+        private static boolean isAFK(Player player) {
+            Plugin plugin = Bukkit.getPluginManager().getPlugin("Essentials");
+            if (plugin instanceof com.earth2me.essentials.Essentials) {
+                com.earth2me.essentials.IUser user = ((com.earth2me.essentials.Essentials) plugin).getUser(player);
+                return user != null && user.isAfk();
+            }
+            return false;
+        }
+    }
+
+    /**
+     * Clase interna para aislar las dependencias de Geyser.
+     */
+    private static class GeyserWrapper {
+        private static boolean isBedrock(Player player) {
+            return org.geysermc.geyser.api.GeyserApi.api().isBedrockPlayer(player.getUniqueId());
+        }
     }
 }
